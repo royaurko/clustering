@@ -2,7 +2,7 @@
 
 This is a (naive) Python implementation of a simple thresholding algorithm for clustering under a pairwise
  similarity measure. The algorithm was designed and analyzed by Aurko Roy, Sadra Yazdanbod and Daniel Zink
- and shown to recover the **target** clustering if the similarity function satisfies the following stability
+ and shown to recover the **target** clustering if the similarity function *k* satisfies the following stability
 property
 
 ```
