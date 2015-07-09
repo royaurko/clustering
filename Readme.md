@@ -9,7 +9,7 @@ property
 k(A, X) > k(A, Y) 
 ```
 
-for every triple of sets A, X and Y such that A and X belong to the same cluster in the **target** cluster
+for every triple of sets A, X and Y such that A and X belong to the same cluster in the target cluster
 while the set Y is a subset of points in some other cluster. The algorithm is noise stable in the sense that
 it only requires sets A, X and Y above a certain size limit to satisfy this property. The algorithm can be 
 optimized to run in time O(n^4), but the present implementation is pretty naive and can be optimized further. 
@@ -36,3 +36,5 @@ cluster.test(data, k, e)
 ```
 where data is path to the data file, k denotes the number of clusters in your target and e is a number
 between 0 and 1 which denotes the minimum fraction of points contained in a single cluster in your target.
+The *cluster.test()* function essentially compares our algorithm to standard clustering algorithms provided
+in numpy/scipy - specifically to **single linkage**, **average linkage**, **complete linkage** and **Ward's method**.
