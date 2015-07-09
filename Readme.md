@@ -13,7 +13,7 @@ for every triple of sets A, X and Y such that A and X belong to the same cluster
 while the set Y is a subset of points in some other cluster. The algorithm is noise stable in the sense that
 it only requires sets A, X and Y above a certain size limit to satisfy this property. The algorithm can be 
 optimized to run in time O(n^4), but the present implementation is pretty naive and can be optimized further. 
-I will put up a link to the manuscript soon.
+I will put up a link to the manuscript later.
 
 ## Dependencies
  - [numpy](http://www.numpy.org/)
