@@ -1,19 +1,21 @@
 # A thresholding algorithm for clustering
 
 This is a (naive) Python implementation of a simple thresholding algorithm for clustering under a pairwise
- similarity measure. The algorithm was designed and analyzed by Aurko Roy, Sadra Yazdanbod and Daniel Zink
- and shown to recover the **target** clustering if the similarity function *k* satisfies the following stability
-property
+ similarity measure. The algorithm correctly recovers the **target** clustering if the similarity
+ function k satisfies the following stability property
 
 ```
 k(A, X) > k(A, Y) 
 ```
 
 for every triple of sets A, X and Y such that A and X belong to the same cluster in the target cluster
-while the set Y is a subset of points in some other cluster. The algorithm is noise stable in the sense that
-it only requires sets A, X and Y above a certain size limit to satisfy this property. The algorithm can be 
-optimized to run in time O(n^4), but the present implementation is pretty naive and can be optimized further. 
-I will put up a link to the manuscript later.
+while the set Y is a subset of points in some other cluster. Intuitively this captures the notion that sets of points
+ are more similar to points in their own cluster than to points in other clusters. The algorithm is noise 
+stable in the sense that it only requires sets A, X and Y above a certain size limit (proportional to n) to
+ satisfy this property. The algorithm can be optimized to run in time O(n^4), but the present implementation
+ is pretty naive and can be optimized further. I will put up a link to the manuscript later.
+
+Authors (manuscript): Aurko Roy, Sadra Yazdanbod and Daniel Zink
 
 ## Dependencies
  - [numpy](http://www.numpy.org/)
