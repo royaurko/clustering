@@ -40,12 +40,3 @@ where data is path to the data file, k denotes the number of clusters in your ta
 between 0 and 1 which denotes the minimum fraction of points contained in a single cluster in your target.
 The *cluster.test()* function essentially compares our algorithm to standard clustering algorithms provided
 in numpy/scipy - specifically to **single linkage**, **average linkage**, **complete linkage** and **Ward's method**.
-As an example a data file is provided in the *dataset* folder:
-
-```python
-from tcluster import cluster
-cluster.test('dataset/wine.data', 3, 0.3)
-```
-
-where the choice of k = 3 and e = 0.3 comes from examining the data (three labels, each label population of roughly the same
-size). 
