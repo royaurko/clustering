@@ -24,7 +24,7 @@ I will put up a link to the manuscript later.
 The following will install the algorithm as a python module
 
 ```shell
-sudo setup.py install
+sudo python setup.py install
 ```
 
 ## Usage
