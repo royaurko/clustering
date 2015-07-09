@@ -21,7 +21,7 @@ I will put up a link to the manuscript later.
  - [munkres](https://pypi.python.org/pypi/munkres/)
 
 ## Installation
-The following will install the algorithm
+The following will install the algorithm as a python module
 
 ```shell
 sudo setup.py install
