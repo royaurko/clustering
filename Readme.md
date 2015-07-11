@@ -12,7 +12,7 @@ for every triple of sets A, X and Y such that A and X belong to the same cluster
 while the set Y is a subset of points in some other cluster. Intuitively this captures the notion that sets of points
  are more similar to points in their own cluster than to points in other clusters. The algorithm is noise 
 stable in the sense that it only requires sets A, X and Y above a certain size limit (proportional to n) to
- satisfy this property. The algorithm can be optimized to run in time O(n^4), but the present implementation
+ satisfy this property. The algorithm can be implemented to run in time O(n^4), but the present implementation
  is pretty naive and can be optimized further. I will put up a link to the manuscript later.
 
 Authors (manuscript): Aurko Roy, Sadra Yazdanbod and Daniel Zink
