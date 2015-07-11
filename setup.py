@@ -7,15 +7,15 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name="ryzcluster",
+    name="tcluster",
     version="1.0.0",
     author='Aurko Roy, Sadra Yazdanbod, Daniel Zink',
     author_email="aurko@gatech.edu",
     description=("A threshold clustering algorithm"),
     license="BSD",
     keywords="clustering",
-    packages=['ryzcluster'],
-    package_dir={'ryzcluster': ''},
+    packages=['tcluster'],
+    package_dir={'tcluster': ''},
     long_description=read('Readme.md'),
     classifiers=[
         "Development Status :: 3 - Alpha",

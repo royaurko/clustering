@@ -33,7 +33,7 @@ sudo python setup.py install
 To run the actual algorithm type the following in a python interpreter
 
 ```python
-from ryzcluster import cluster
+from tcluster import cluster
 cluster.test(data, k, e)
 ```
 where data is path to the data file, k denotes the number of clusters in your target and e is a number
