@@ -9,7 +9,7 @@ def read(fname):
 setup(
     name="tcluster",
     version="1.0.0",
-    author='Aurko Roy, Sadra Yazdanbod, Daniel Zink',
+    author='Aurko Roy',
     author_email="aurko@gatech.edu",
     description=("A threshold clustering algorithm"),
     license="BSD",
