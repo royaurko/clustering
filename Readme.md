@@ -26,7 +26,7 @@ Authors (manuscript): Aurko Roy, Sadra Yazdanbod and Daniel Zink
 The following will install the algorithm as a python module
 
 ```shell
-pip install -e "git+https://github.com/royaurko/threshold-clustering#egg=threshold-clustering"
+pip install "git+https://github.com/royaurko/threshold-clustering#egg=threshold-clustering"
 ```
 
 ## Usage
