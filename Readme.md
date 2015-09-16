@@ -40,5 +40,5 @@ where `data` the numpy array representing the data, `target` is the target label
 and `e`is a number between 0 and 1 which denotes the minimum fraction of points contained in a single cluster in your target. If
 the labels are evenly balanced then you may set `e` = `1/k`.
 
-The *cluster.test()* function computes the error of our algorithm and compares it to standard clustering algorithms -
+The `cluster.test()` function computes the error of our algorithm and compares it to standard clustering algorithms -
 **single linkage**, **average linkage**, **complete linkage** and **Ward's method**.
