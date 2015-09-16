@@ -34,9 +34,11 @@ To run the actual algorithm type the following in a python interpreter
 
 ```python
 from tcluster import cluster
-cluster.test(data, k, e)
+cluster.test(data, target, k, e)
 ```
-where data is path to the data file, k denotes the number of clusters in your target and e is a number
-between 0 and 1 which denotes the minimum fraction of points contained in a single cluster in your target.
-The *cluster.test()* function essentially compares our algorithm to standard clustering algorithms provided
-in numpy/scipy - specifically to **single linkage**, **average linkage**, **complete linkage** and **Ward's method**.
+where `data` the numpy array representing the data, `target` is the target labels, `k` is the number of clusters in your target
+and `e`is a number between 0 and 1 which denotes the minimum fraction of points contained in a single cluster in your target. If
+the labels are evenly balanced then you may set `e` = `1/k`.
+
+The *cluster.test()* function computes the error of our algorithm and compares it to standard clustering algorithms -
+**single linkage**, **average linkage**, **complete linkage** and **Ward's method**.
