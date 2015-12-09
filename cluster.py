@@ -1,9 +1,12 @@
-import numpy as np
 import scipy.cluster.hierarchy as hac
+import numpy as np
 from scipy.spatial.distance import pdist
 from scipy.linalg import norm
 from munkres import Munkres
 import time
+from joblib import Parallel, delayed
+import multiprocessing
+num_cpu = multiprocessing.cpu_count()
 
 
 def error(cluster, tcluster):
@@ -17,9 +20,9 @@ def error(cluster, tcluster):
     C = list()
     T = list()
     for i in range(1, k+1):
-        tmp = set([j for j in range(n) if cluster[j] == i])
+        tmp = {j for j in range(n) if cluster[j] == i}
         C.append(tmp)
-        tmp = set([j for j in range(n) if tcluster[j] == i])
+        tmp = {j for j in range(n) if tcluster[j] == i}
         T.append(tmp)
     M = list()
     for i in range(k):
@@ -66,6 +69,23 @@ def set_distances(X, S):
     return elem
 
 
+def get_thresholds(X, minsize, i):
+    """ Get the threshold cluster for the i^{th} element of X
+    :param X: Data set
+    :param D: Dictionary
+    :param minsize: Minimum size of a cluster
+    :param i: element is X[i]
+    :return:
+    """
+    elem = set_distances(X, {i})
+    thresholds = []
+    for j in range(minsize - 1, len(elem)):
+        cluster = set(elem[:j])
+        cluster.add(i)
+        thresholds.append(cluster)
+    return thresholds, i, elem
+
+
 def threshold(X, e, g, s, k):
     """ Get all threshold clusters (algorithm 7, lines 1-6)
     :param X: Data matrix
@@ -75,21 +95,16 @@ def threshold(X, e, g, s, k):
     :param k: Number of clusters
     :return: Threshold clusters
     """
-    print 'Populating list with all threshold clusters'
+    print('Populating list with all threshold clusters')
     start = time.clock()
-    D = dict()
-    L = list()
     n = len(X)
     minsize = int(e * n)
-    for i in range(n):
-        elem = set_distances(X, set([i]))
-        D[i] = elem
-        for j in range(minsize - 1, len(elem)):
-            cluster = set(elem[:j])
-            cluster.add(i)
-            L.append(cluster)
+    items = Parallel(n_jobs=num_cpu)(delayed(get_thresholds)(X, minsize, i) for i in range(n))
+    threshold_lists = [item[0] for item in items]
+    L = [item for sublist in threshold_lists for item in sublist]
+    D = dict([(item[1], item[2]) for item in items])
     end = time.clock()
-    print 'time = %d s' % (end - start)
+    print('time = ', (end - start))
     return refine(L, X, D, e, g, s, k)
 
 
@@ -104,12 +119,12 @@ def refine(L, X, D, e, g, s, k):
     :param k: Number of clusters
     :return: Refined clusters
     """
-    print 'Getting rid of bad points'
+    print('Getting rid of bad points')
     start = time.clock()
     n = len(X)
     T = int((e - 2*g - s*k) * n)
     t = int((e - g) * n)
-    print 'length of L = ' + str(len(L))
+    print('length of L = ' + str(len(L)))
     for i in range(len(L)):
         A = L[i]
         B = set()
@@ -122,7 +137,7 @@ def refine(L, X, D, e, g, s, k):
                 B.add(u)
         L[i] = B
     end = time.clock()
-    print 'time = %d s' % (end - start)
+    print('time = %d s' % (end - start))
     return grow(L, X, g)
 
 
@@ -133,7 +148,7 @@ def grow(L, X, g):
     :param g:
     :return:
     """
-    print 'Getting back good points'
+    print('Getting back good points')
     start = time.clock()
     n = len(X)
     t = int(g*n)
@@ -144,7 +159,7 @@ def grow(L, X, g):
         A = A.union(tmp)
         L[i] = A
     end = time.clock()
-    print 'time = %d s' % (end - start)
+    print('time = %d s' % (end - start))
     return L
 
 
@@ -191,7 +206,7 @@ def laminar(L, X, e, g, s):
     :param s: lower bound on the fractional size of every set in outside cluster for which stability holds
     :return: Laminar list
     """
-    print 'Making the list laminar'
+    print('Making the list laminar')
     start = time.clock()
     n = len(X)
     S = non_laminar_pairs(L)
@@ -210,7 +225,7 @@ def laminar(L, X, e, g, s):
         else:
             # Intersection is small
             v = intersection.pop()
-            elem = set_distances(X, set([v]))
+            elem = set_distances(X, {v})
             t = int((e - g) * n)
             elem = elem[:t]
             int1 = len(L[i].intersection(elem))
@@ -221,7 +236,7 @@ def laminar(L, X, e, g, s):
                 del L[i]
         S = non_laminar_pairs(L)
     end = time.clock()
-    print 'time = %d' % (end - start)
+    print('time = %d' % (end - start))
     return L
 
 
@@ -233,7 +248,7 @@ def prune(L, tcluster, k, label):
     :param label: label of every element
     :return:
     """
-    print 'Pruning the tree for the best cluster'
+    print('Pruning the tree for the best cluster')
     if len(L) == 0:
         ''' Empty list'''
         return error(label, tcluster), label
@@ -291,18 +306,28 @@ def test(X, tcluster, k, e):
     Z.append(hac.linkage(y, method='average'))
     Z.append(hac.linkage(X, method='ward'))
     # tcluster = np.loadtxt(name, dtype=int, delimiter=',', usecols=(0,))
-    other_clusters = map(lambda x: hac.fcluster(x, k, 'maxclust'), Z)
-    errors = map(lambda x: error(x, tcluster), other_clusters)
+    other_clusters = [hac.fcluster(x, k, 'maxclust') for x in Z]
+    errors = [error(x, tcluster) for x in other_clusters]
     s = (0.8*e)/(2*k + 1)
     g = 0.8*0.2*e
-    print 'k = ' + str(k)
-    print 'e = ' + str(e)
-    print 'g = ' + str(g)
-    print 's = ' + str(s)
+    print('k = ' + str(k))
+    print('e = ' + str(e))
+    print('g = ' + str(g))
+    print('s = ' + str(s))
     L = threshold(X, e, g, s, k)
     L = laminar(L, X, e, g, s)
     label = [1]*len(X)
     pruned = prune(L, tcluster, k, label)
-    print 'Error rate = %d' % pruned[0]
-    print 'Error rate on other methods = ' + str(errors)
-    print 'Labels = ' + str(label)
+    print('Error rate = %d' % pruned[0])
+    print('Error rate on other methods = ' + str(errors))
+    print('Labels = ' + str(label))
+
+
+if __name__ == '__main__':
+    fname = 'wine.bin'
+    X = np.loadtxt(fname, dtype=float, delimiter=',', usecols=range(1, 14))
+    tcluster = np.loadtxt(fname, dtype=float, delimiter=',', usecols=(0,))
+    print('Shape of X = ', X.shape)
+    print('Shape of tcluster = ', tcluster.shape)
+    k = 3
+    test(X, tcluster, 3, 0.3)

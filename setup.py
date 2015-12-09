@@ -15,7 +15,7 @@ setup(
     license="BSD",
     keywords="clustering",
     packages=['tcluster'],
-    install_requires=['munkres', 'scipy', 'numpy'],
+    install_requires=['munkres', 'scipy', 'numpy', 'joblib'],
     package_dir={'tcluster': ''},
     long_description=read('Readme.md'),
     classifiers=[
