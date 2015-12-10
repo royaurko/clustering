@@ -388,7 +388,8 @@ if __name__ == '__main__':
     result_dir = 'results'
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
-    out_file_name = result_dir + '/' + fname
+    time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
+    out_file_name = result_dir + '/' + fname + '_' + time_str
     f = open(out_file_name, 'wb')
     reader = csv.reader(open(fname), delimiter=',')
     X = list()
@@ -403,7 +404,7 @@ if __name__ == '__main__':
     print('Shape of X = ', X.shape)
     print('Length of tcluster = ', len(tcluster))
     k = len(set(tcluster))
-    error_dict = test(X, tcluster, k, 1/k)
+    error_dict = test(X, tcluster, k, 1/(3*k))
     error_dict = str(error_dict) + '\n'
     f.write(bytes(error_dict, 'utf-8'))
     f.close()
