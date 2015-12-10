@@ -67,7 +67,7 @@ def error(cluster, tcluster):
 
 def get_distance(X, S, i):
     if i in S:
-        return -1
+        return None
     S = list(S)
     norms = map(lambda j: norm(X[i] - X[j]), S)
     d = reduce(lambda x, y: x + y, norms)
@@ -87,7 +87,7 @@ def set_distances(X, S):
         dist = pool.map(func, range(n))
         pool.close()
         pool.join()
-    dist = [item for item in dist if item != -1]
+    dist = [item for item in dist if item is not None]
     dist = sorted(dist, key=lambda x: x[1])
     elem = [item[0] for item in dist]
     return elem
