@@ -10,7 +10,6 @@ from functools import partial
 from functools import reduce
 from contextlib import closing
 import os
-import pickle
 num_cpu = multiprocessing.cpu_count()
 
 
@@ -389,5 +388,6 @@ if __name__ == '__main__':
     print('Shape of tcluster = ', tcluster.shape)
     k = 3
     error_dict = test(X, tcluster, 3, 0.3)
-    pickle.dump(error_dict, f)
+    error_dict = str(error_dict) + '\n'
+    f.write(bytes(error_dict, 'utf-8'))
     f.close()
