@@ -9,6 +9,8 @@ import multiprocessing.pool
 from functools import partial
 from functools import reduce
 from contextlib import closing
+import os
+import pickle
 num_cpu = multiprocessing.cpu_count()
 
 
@@ -351,16 +353,15 @@ def test(X, tcluster, k, e):
     """
     k = int(k)
     e = float(e)
-    # X = np.loadtxt(name, dtype=float, delimiter=',', usecols=range(1, 14))
     y = pdist(X, metric='euclidean')
     Z = list()
     Z.append(hac.linkage(y, method='single'))
     Z.append(hac.linkage(y, method='complete'))
     Z.append(hac.linkage(y, method='average'))
     Z.append(hac.linkage(X, method='ward'))
-    # tcluster = np.loadtxt(name, dtype=int, delimiter=',', usecols=(0,))
     other_clusters = [hac.fcluster(x, k, 'maxclust') for x in Z]
     errors = [error(x, tcluster) for x in other_clusters]
+    error_dict = {'single linkage': errors[0], 'complete linkage': errors[1], 'average linkage': errors[2], 'ward': errors[3]}
     s = (0.8*e)/(2*k + 1)
     g = 0.8*0.2*e
     print('k = ', k)
@@ -371,16 +372,22 @@ def test(X, tcluster, k, e):
     L = laminar(L, X, e, g, s)
     label = [1]*len(X)
     pruned = prune(L, tcluster, k, label)
-    print('Error rate = ', pruned[0])
-    print('Error rate on other methods = ', errors)
-    print('Labels = ', label)
+    error_dict['threshold'] = pruned[0]
+    return error_dict
 
 
 if __name__ == '__main__':
     fname = 'wine.bin'
+    result_dir = 'result'
+    if not os.path.exists(result_dir):
+        os.makedirs(result_dir)
+    out_file_name = result_dir + '/' + fname
+    f = open(out_file_name, 'wb')
     X = np.loadtxt(fname, dtype=float, delimiter=',', usecols=range(1, 14))
     tcluster = np.loadtxt(fname, dtype=float, delimiter=',', usecols=(0,))
     print('Shape of X = ', X.shape)
     print('Shape of tcluster = ', tcluster.shape)
     k = 3
-    test(X, tcluster, 3, 0.3)
+    error_dict = test(X, tcluster, 3, 0.3)
+    pickle.dump(error_dict, f)
+    f.close()
