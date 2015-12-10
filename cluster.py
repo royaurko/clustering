@@ -10,6 +10,7 @@ from functools import partial
 from functools import reduce
 from contextlib import closing
 import os
+import argparse
 num_cpu = multiprocessing.cpu_count()
 
 
@@ -376,18 +377,23 @@ def test(X, tcluster, k, e):
 
 
 if __name__ == '__main__':
-    fname = 'wine.bin'
-    result_dir = 'result'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--data', help='Data file')
+    parser.add_argument('-l', '--label', help='Column of labels')
+    args = parser.parse_args()
+    fname = args.data
+    result_dir = 'results'
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
     out_file_name = result_dir + '/' + fname
     f = open(out_file_name, 'wb')
-    X = np.loadtxt(fname, dtype=float, delimiter=',', usecols=range(1, 14))
-    tcluster = np.loadtxt(fname, dtype=float, delimiter=',', usecols=(0,))
+    Z = np.loadtxt(fname, dtype=float, delimiter=',')
+    tcluster = Z[:, args.label]
+    X = np.delete(Z, args.label, 1)
     print('Shape of X = ', X.shape)
     print('Shape of tcluster = ', tcluster.shape)
-    k = 3
-    error_dict = test(X, tcluster, 3, 0.3)
+    k = len(set(tcluster))
+    error_dict = test(X, tcluster, k, 1/k)
     error_dict = str(error_dict) + '\n'
     f.write(bytes(error_dict, 'utf-8'))
     f.close()
