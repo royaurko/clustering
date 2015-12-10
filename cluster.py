@@ -350,17 +350,17 @@ def test(X, tcluster, k, e):
     errors = [error(x, tcluster) for x in other_clusters]
     s = (0.8*e)/(2*k + 1)
     g = 0.8*0.2*e
-    print('k = ' + str(k))
-    print('e = ' + str(e))
-    print('g = ' + str(g))
-    print('s = ' + str(s))
+    print('k = ', k)
+    print('e = ', e)
+    print('g = ', g)
+    print('s = ', s)
     L = threshold(X, e, g, s, k)
     L = laminar(L, X, e, g, s)
     label = [1]*len(X)
     pruned = prune(L, tcluster, k, label)
-    print('Error rate = %d' % pruned[0])
-    print('Error rate on other methods = ' + str(errors))
-    print('Labels = ' + str(label))
+    print('Error rate = ', pruned[0])
+    print('Error rate on other methods = ', errors)
+    print('Labels = ', label)
 
 
 if __name__ == '__main__':
