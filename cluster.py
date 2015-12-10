@@ -123,7 +123,7 @@ def threshold(X, e, g, s, k):
     start = time.clock()
     n = len(X)
     minsize = int(e * n)
-    with closing(Pool(processes=4)) as pool:
+    with closing(Pool(processes=num_cpu)) as pool:
         func = partial(get_thresholds, X, minsize)
         items = pool.map(func, range(n))
         pool.close()
@@ -167,7 +167,7 @@ def refine(L, X, D, e, g, s, k):
     T = int((e - 2*g - s*k) * n)
     t = int((e - g) * n)
     print('length of L = ' + str(len(L)))
-    with closing(Pool()) as pool:
+    with closing(Pool(processes=num_cpu)) as pool:
         func = partial(refine_individual, D, T, t)
         L = pool.map(func, L)
         pool.close()
@@ -195,7 +195,7 @@ def grow(L, X, g):
     start = time.clock()
     n = len(X)
     t = int(g*n)
-    with closing(Pool()) as pool:
+    with closing(Pool(processes=num_cpu)) as pool:
         func = partial(grow_individual, X, t)
         L = pool.map(func, L)
     end = time.clock()
