@@ -4,9 +4,26 @@ from scipy.spatial.distance import pdist
 from scipy.linalg import norm
 from munkres import Munkres
 import time
-from joblib import Parallel, delayed
 import multiprocessing
+import multiprocessing.pool
+from functools import partial
+from functools import reduce
+from contextlib import closing
 num_cpu = multiprocessing.cpu_count()
+
+
+class NoDaemonProcess(multiprocessing.Process):
+    def _get_daemon(self):
+        return False
+
+    def _set_daemon(self, value):
+        pass
+
+    daemon = property(_get_daemon, _set_daemon)
+
+
+class Pool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
 
 
 def error(cluster, tcluster):
@@ -48,6 +65,16 @@ def error(cluster, tcluster):
     return float(total)/float(n)
 
 
+def get_distance(X, S, i):
+    if i in S:
+        return -1
+    S = list(S)
+    norms = map(lambda j: norm(X[i] - X[j]), S)
+    d = reduce(lambda x, y: x + y, norms)
+    d /= len(S)
+    return i, d
+
+
 def set_distances(X, S):
     """ Return the elements outside S sorted by distance to S
     :param X: Data matrix
@@ -55,15 +82,12 @@ def set_distances(X, S):
     :return: Elements outside S sorted by distance to S
     """
     n = len(X)
-    s = len(S)
-    dist = list()
-    for i in range(n):
-        if i not in S:
-            d = 0.0
-            for j in S:
-                d += norm(X[i] - X[j])
-            d /= s
-            dist.append((i, d))
+    with closing(Pool(processes=num_cpu)) as pool:
+        func = partial(get_distance, X, S)
+        dist = pool.map(func, range(n))
+        pool.close()
+        pool.join()
+    dist = [item for item in dist if item != -1]
     dist = sorted(dist, key=lambda x: x[1])
     elem = [item[0] for item in dist]
     return elem
@@ -99,13 +123,31 @@ def threshold(X, e, g, s, k):
     start = time.clock()
     n = len(X)
     minsize = int(e * n)
-    items = Parallel(n_jobs=num_cpu)(delayed(get_thresholds)(X, minsize, i) for i in range(n))
+    with closing(Pool(processes=4)) as pool:
+        func = partial(get_thresholds, X, minsize)
+        items = pool.map(func, range(n))
+        pool.close()
+        pool.join()
+    # items = Parallel(n_jobs=num_cpu)(delayed(get_thresholds)(X, minsize, i) for i in range(n))
     threshold_lists = [item[0] for item in items]
     L = [item for sublist in threshold_lists for item in sublist]
     D = dict([(item[1], item[2]) for item in items])
     end = time.clock()
     print('time = ', (end - start))
     return refine(L, X, D, e, g, s, k)
+
+
+def refine_individual(D, T, t, S):
+    A = S
+    B = set()
+    while A:
+        u = A.pop()
+        Cu = D[u]
+        Cu = Cu[:t]
+        Cu = set(Cu)
+        if len(S.intersection(Cu)) >= T:
+            B.add(u)
+    return B
 
 
 def refine(L, X, D, e, g, s, k):
@@ -125,20 +167,21 @@ def refine(L, X, D, e, g, s, k):
     T = int((e - 2*g - s*k) * n)
     t = int((e - g) * n)
     print('length of L = ' + str(len(L)))
-    for i in range(len(L)):
-        A = L[i]
-        B = set()
-        while A:
-            u = A.pop()
-            Cu = D[u]
-            Cu = Cu[:t]
-            Cu = set(Cu)
-            if len(L[i].intersection(Cu)) >= T:
-                B.add(u)
-        L[i] = B
+    with closing(Pool()) as pool:
+        func = partial(refine_individual, D, T, t)
+        L = pool.map(func, L)
+        pool.close()
+        pool.join()
     end = time.clock()
-    print('time = %d s' % (end - start))
+    print('time = ', (end - start))
     return grow(L, X, g)
+
+
+def grow_individual(X, t, A):
+    elem = set_distances(X, A)
+    tmp = set(elem[:t])
+    A = A.union(tmp)
+    return A
 
 
 def grow(L, X, g):
@@ -152,14 +195,11 @@ def grow(L, X, g):
     start = time.clock()
     n = len(X)
     t = int(g*n)
-    for i in range(len(L)):
-        A = L[i]
-        elem = set_distances(X, A)
-        tmp = set(elem[:t])
-        A = A.union(tmp)
-        L[i] = A
+    with closing(Pool()) as pool:
+        func = partial(grow_individual, X, t)
+        L = pool.map(func, L)
     end = time.clock()
-    print('time = %d s' % (end - start))
+    print('time = ', (end - start))
     return L
 
 
