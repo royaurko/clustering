@@ -8,7 +8,6 @@ import multiprocessing
 import multiprocessing.pool
 from functools import partial
 from functools import reduce
-from contextlib import closing
 import os
 import argparse
 import csv
@@ -86,7 +85,7 @@ def set_distances(X, S):
     :return: Elements outside S sorted by distance to S
     """
     n = len(X)
-    with closing(Pool(processes=num_cpu)) as pool:
+    with multiprocessing.Pool(processes=num_cpu) as pool:
         func = partial(get_distance, X, S)
         dist = pool.map(func, range(n))
         pool.close()
@@ -127,7 +126,7 @@ def threshold(X, e, g, s, k):
     start = time.clock()
     n = len(X)
     minsize = int(e * n)
-    with closing(Pool(processes=num_cpu)) as pool:
+    with Pool(processes=num_cpu) as pool:
         func = partial(get_thresholds, X, minsize)
         items = pool.map(func, range(n))
         pool.close()
@@ -136,6 +135,7 @@ def threshold(X, e, g, s, k):
     L = [item for sublist in threshold_lists for item in sublist]
     D = dict([(item[1], item[2]) for item in items])
     end = time.clock()
+    print('Length of L = ', len(L))
     print('time = ', (end - start))
     return refine(L, X, D, e, g, s, k)
 
@@ -176,12 +176,12 @@ def refine(L, X, D, e, g, s, k):
     n = len(X)
     T = int((e - 2*g - s*k) * n)
     t = int((e - g) * n)
-    print('length of L = ' + str(len(L)))
-    with closing(Pool(processes=num_cpu)) as pool:
+    with Pool(processes=num_cpu) as pool:
         func = partial(refine_individual, D, T, t)
         L = pool.map(func, L)
         pool.close()
         pool.join()
+    print('length of L = ' + str(len(L)))
     end = time.clock()
     print('time = ', (end - start))
     return grow(L, X, g)
@@ -211,9 +211,10 @@ def grow(L, X, g):
     start = time.clock()
     n = len(X)
     t = int(g*n)
-    with closing(Pool(processes=num_cpu)) as pool:
+    with Pool(processes=num_cpu) as pool:
         func = partial(grow_individual, X, t)
         L = pool.map(func, L)
+    print('Length of L = ', len(L))
     end = time.clock()
     print('time = ', (end - start))
     return L
@@ -264,7 +265,7 @@ def laminar(L, X, e, g, s):
     print('Making the list laminar')
     start = time.clock()
     n = len(X)
-    with closing(Pool(processes=num_cpu)) as pool:
+    with Pool(processes=num_cpu) as pool:
         func = partial(non_laminar_pairs, L)
         intersections = pool.map(func, range(n-1))
     intersections = set([item for sublist in intersections for item in sublist])
@@ -400,7 +401,7 @@ if __name__ == '__main__':
     print('Shape of X = ', X.shape)
     print('Length of tcluster = ', len(tcluster))
     k = len(set(tcluster))
-    error_dict = test(X, tcluster, k, 1/(k))
+    error_dict = test(X, tcluster, k, 1/k)
     error_dict = str(error_dict) + '\n'
     d = dict()
     if os.path.exists(result):
