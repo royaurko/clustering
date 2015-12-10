@@ -81,6 +81,7 @@ def set_distances(X, S):
     :param S: set of points
     :return: Elements outside S sorted by distance to S
     """
+    print('Sorting points...')
     n = len(X)
     with closing(Pool(processes=num_cpu)) as pool:
         func = partial(get_distance, X, S)
@@ -138,6 +139,13 @@ def threshold(X, e, g, s, k):
 
 
 def refine_individual(D, T, t, S):
+    """ Refine a individual candidate cluster
+    :param D: Dictionary
+    :param T: Threshold
+    :param t: threshold
+    :param S: Candidate set
+    :return:
+    """
     A = S
     B = set()
     while A:
@@ -178,6 +186,12 @@ def refine(L, X, D, e, g, s, k):
 
 
 def grow_individual(X, t, A):
+    """ Grow an individual candidate cluster
+    :param X: Data set
+    :param t: Threshold
+    :param A: Candidate set
+    :return:
+    """
     elem = set_distances(X, A)
     tmp = set(elem[:t])
     A = A.union(tmp)
