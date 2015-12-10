@@ -11,6 +11,7 @@ from functools import reduce
 from contextlib import closing
 import os
 import argparse
+import csv
 num_cpu = multiprocessing.cpu_count()
 
 
@@ -130,7 +131,6 @@ def threshold(X, e, g, s, k):
         items = pool.map(func, range(n))
         pool.close()
         pool.join()
-    # items = Parallel(n_jobs=num_cpu)(delayed(get_thresholds)(X, minsize, i) for i in range(n))
     threshold_lists = [item[0] for item in items]
     L = [item for sublist in threshold_lists for item in sublist]
     D = dict([(item[1], item[2]) for item in items])
@@ -234,22 +234,21 @@ def inverse_similarity(X, A, B):
     return dist
 
 
-def non_laminar_pairs(L):
-    """ Return two sets C1 and C2 in L that are not laminar, else return None
+def non_laminar_pairs(L, i):
+    """ Return all sets in L[i+1], ..., L[n-1] that are non-laminar with respect to L[i]
     :param L: List of subsets
-    :return: Two set indices
+    :return: Tuple (i, list) where list is a list of indices of sets in L[i+1], ..., L[n-1] that are non-laminar
     """
-    for i in range(len(L)):
-        for j in range(len(L)):
-            if i == j:
+    indices = list()
+    for j in range(i + 1, len(L)):
+        intersection = L[i].intersection(L[j])
+        if len(intersection) > 0:
+            if L[i].issubset(L[j]) or L[j].issubset(L[i]):
                 continue
-            intersection = L[i].intersection(L[j])
-            if len(intersection) > 0:
-                if L[i].issubset(L[j]) or L[j].issubset(L[i]):
-                    continue
-                else:
-                    return i, j
-    return
+            else:
+                indices.append(j)
+    tuples = [(i, index) for index in indices]
+    return tuples
 
 
 def laminar(L, X, e, g, s):
@@ -264,19 +263,23 @@ def laminar(L, X, e, g, s):
     print('Making the list laminar')
     start = time.clock()
     n = len(X)
-    S = non_laminar_pairs(L)
-    while S is not None:
-        i = S[0]
-        j = S[1]
+    with closing(Pool(processes=num_cpu)) as pool:
+        func = partial(non_laminar_pairs, L)
+        intersections = pool.map(func, range(n-1))
+    intersections = set([item for sublist in intersections for item in sublist])
+    while intersections:
+        i, j = intersections.pop()
+        if L[i] is None or L[j] is None:
+            continue
         intersection = L[i].intersection(L[j])
         if len(intersection) > int(s * n):
             A = intersection
             C1 = L[i].difference(A)
             C2 = L[j].difference(A)
             if inverse_similarity(X, A, C1) <= inverse_similarity(X, A, C2):
-                del L[j]
+                L[j] = None
             else:
-                del L[i]
+                L[i] = None
         else:
             # Intersection is small
             v = intersection.pop()
@@ -286,10 +289,10 @@ def laminar(L, X, e, g, s):
             int1 = len(L[i].intersection(elem))
             int2 = len(L[j].intersection(elem))
             if int1 >= int2:
-                del L[j]
+                L[j] = None
             else:
-                del L[i]
-        S = non_laminar_pairs(L)
+                L[i] = None
+    L = [item for item in L if item is not None]
     end = time.clock()
     print('time = %d' % (end - start))
     return L
@@ -379,7 +382,7 @@ def test(X, tcluster, k, e):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--data', help='Data file')
-    parser.add_argument('-l', '--label', help='Column of labels')
+    parser.add_argument('-l', '--label', type=int, default=0, help='Column of labels')
     args = parser.parse_args()
     fname = args.data
     result_dir = 'results'
@@ -387,11 +390,18 @@ if __name__ == '__main__':
         os.makedirs(result_dir)
     out_file_name = result_dir + '/' + fname
     f = open(out_file_name, 'wb')
-    Z = np.loadtxt(fname, dtype=float, delimiter=',')
-    tcluster = Z[:, args.label]
-    X = np.delete(Z, args.label, 1)
+    reader = csv.reader(open(fname), delimiter=',')
+    X = list()
+    tcluster = list()
+    for row in reader:
+        if row:
+            label = row[args.label]
+            row.pop(args.label)
+            X.append(row)
+            tcluster.append(label)
+    X = np.array(X, dtype=float)
     print('Shape of X = ', X.shape)
-    print('Shape of tcluster = ', tcluster.shape)
+    print('Length of tcluster = ', len(tcluster))
     k = len(set(tcluster))
     error_dict = test(X, tcluster, k, 1/k)
     error_dict = str(error_dict) + '\n'
