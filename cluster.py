@@ -81,7 +81,6 @@ def set_distances(X, S):
     :param S: set of points
     :return: Elements outside S sorted by distance to S
     """
-    print('Sorting points...')
     n = len(X)
     with closing(Pool(processes=num_cpu)) as pool:
         func = partial(get_distance, X, S)
