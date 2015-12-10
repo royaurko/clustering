@@ -12,6 +12,7 @@ from contextlib import closing
 import os
 import argparse
 import csv
+import pickle
 num_cpu = multiprocessing.cpu_count()
 
 
@@ -294,7 +295,7 @@ def laminar(L, X, e, g, s):
                 L[i] = None
     L = [item for item in L if item is not None]
     end = time.clock()
-    print('time = %d' % (end - start))
+    print('time = ', (end - start))
     return L
 
 
@@ -385,12 +386,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--label', type=int, default=0, help='Column of labels')
     args = parser.parse_args()
     fname = args.data
-    result_dir = 'results'
-    if not os.path.exists(result_dir):
-        os.makedirs(result_dir)
-    time_str = time.strftime("%Y-%m-%d_%H-%M-%S")
-    out_file_name = result_dir + '/' + fname + '_' + time_str
-    f = open(out_file_name, 'wb')
+    result = 'results.pkl'
     reader = csv.reader(open(fname), delimiter=',')
     X = list()
     tcluster = list()
@@ -404,7 +400,16 @@ if __name__ == '__main__':
     print('Shape of X = ', X.shape)
     print('Length of tcluster = ', len(tcluster))
     k = len(set(tcluster))
-    error_dict = test(X, tcluster, k, 1/(3*k))
+    error_dict = test(X, tcluster, k, 1/(k))
     error_dict = str(error_dict) + '\n'
-    f.write(bytes(error_dict, 'utf-8'))
+    d = dict()
+    if os.path.exists(result):
+        f = open(result, 'rb')
+        d = pickle.load(f)
+        f.close()
+    f = open(result, 'wb')
+    if args.data in d:
+        d[args.data].append(error_dict)
+    else:
+        d[args.data] = [error_dict]
     f.close()
