@@ -253,6 +253,34 @@ def non_laminar(L, i):
     return tuples
 
 
+def mark_non_laminar(L, X, e, g, s, t):
+    i, j = t[0], t[1]
+    if L[i] is None or L[j] is None:
+        return
+    n = len(X)
+    intersection = L[i].intersection(L[j])
+    if len(intersection) > int(s * n):
+        A = intersection
+        C1 = L[i].difference(A)
+        C2 = L[j].difference(A)
+        if inverse_similarity(X, A, C1) <= inverse_similarity(X, A, C2):
+            L[j] = None
+        else:
+           L[i] = None
+    else:
+        # Intersection is small
+        v = intersection.pop()
+        elem = set_distances(X, {v})
+        t = int((e - g) * n)
+        elem = elem[:t]
+        int1 = len(L[i].intersection(elem))
+        int2 = len(L[j].intersection(elem))
+        if int1 >= int2:
+            L[j] = None
+        else:
+            L[i] = None
+
+
 def laminar(L, X, e, g, s):
     """ Make family laminar (Algorithm 9)
     :param L: List of subsets
@@ -265,35 +293,16 @@ def laminar(L, X, e, g, s):
     print('Making the list laminar (parallel)')
     start = time.clock()
     n = len(X)
+    print('Computing pairs of non-laminar sets')
     with Pool(processes=num_cpu) as pool:
         func = partial(non_laminar, L)
         intersections = pool.map(func, range(n-1))
+    end = time.clock()
     intersections = set([item for sublist in intersections for item in sublist])
-    while intersections:
-        i, j = intersections.pop()
-        if L[i] is None or L[j] is None:
-            continue
-        intersection = L[i].intersection(L[j])
-        if len(intersection) > int(s * n):
-            A = intersection
-            C1 = L[i].difference(A)
-            C2 = L[j].difference(A)
-            if inverse_similarity(X, A, C1) <= inverse_similarity(X, A, C2):
-                L[j] = None
-            else:
-                L[i] = None
-        else:
-            # Intersection is small
-            v = intersection.pop()
-            elem = set_distances(X, {v})
-            t = int((e - g) * n)
-            elem = elem[:t]
-            int1 = len(L[i].intersection(elem))
-            int2 = len(L[j].intersection(elem))
-            if int1 >= int2:
-                L[j] = None
-            else:
-                L[i] = None
+    print('time = ', end - start)
+    with Pool(processes=num_cpu) as pool:
+        func = partial(mark_non_laminar, L, X, e, g, s)
+        pool.map(func, intersections)
     L = [item for item in L if item is not None]
     end = time.clock()
     print('time = ', (end - start))
