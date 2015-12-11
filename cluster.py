@@ -12,6 +12,7 @@ import os
 import argparse
 import csv
 import pickle
+import random
 num_cpu = multiprocessing.cpu_count()
 
 
@@ -300,12 +301,15 @@ def laminar(L, X, e, g, s):
     end = time.clock()
     intersections = set([item for sublist in intersections for item in sublist])
     print('time = ', end - start)
+    print('Removing non-laminar pairs')
+    start = time.clock()
     with Pool(processes=num_cpu) as pool:
         func = partial(mark_non_laminar, L, X, e, g, s)
         pool.map(func, intersections)
     L = [item for item in L if item is not None]
     end = time.clock()
     print('time = ', (end - start))
+    print('Length of list after removing non-laminar pairs = ', len(L))
     return L
 
 
@@ -314,16 +318,15 @@ def non_laminar_pairs(L):
     :param L: List of subsets
     :return: Two set indices
     """
-    for i in range(len(L)):
-        for j in range(len(L)):
-            if i == j:
+    while True:
+        i = random.randint(0, len(L)-1)
+        j = random.randint(i + 1, len(L))
+        intersection = L[i].intersection(L[j])
+        if len(intersection) > 0:
+            if L[i].issubset(L[j]) or L[j].issubset(L[i]):
                 continue
-            intersection = L[i].intersection(L[j])
-            if len(intersection) > 0:
-                if L[i].issubset(L[j]) or L[j].issubset(L[i]):
-                    continue
-                else:
-                    return i, j
+            else:
+                return i, j
     return
 
 
@@ -443,7 +446,20 @@ def test(X, tcluster, k, e):
     print('e = ', e)
     print('g = ', g)
     print('s = ', s)
-    L = threshold(X, e, g, s, k)
+    # L = threshold(X, e, g, s, k)
+    f = open('prelaminar.pkl', 'rb')
+    L = pickle.load(f)
+    f.close()
+    parallel_L = laminar(L, X, e, g, s)
+    f = open('prelaminar.pkl', 'rb')
+    L = pickle.load(f)
+    f.close()
+    seq_L = sequential_laminar(L, X, e, g, s)
+    f = open('laminar.pkl', 'wb')
+    t = {'parallel': parallel_L, 'seq': seq_L}
+    pickle.dump(t, f)
+    f.close()
+    return
     L = laminar(L, X, e, g, s)
     print('Length of L = ', len(L))
     label = [1]*len(X)
