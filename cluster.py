@@ -236,7 +236,7 @@ def inverse_similarity(X, A, B):
     return dist
 
 
-def non_laminar_pairs(L, i):
+def non_laminar(L, i):
     """ Return all sets in L[i+1], ..., L[n-1] that are non-laminar with respect to L[i]
     :param L: List of subsets
     :return: Tuple (i, list) where list is a list of indices of sets in L[i+1], ..., L[n-1] that are non-laminar
@@ -262,11 +262,11 @@ def laminar(L, X, e, g, s):
     :param s: lower bound on the fractional size of every set in outside cluster for which stability holds
     :return: Laminar list
     """
-    print('Making the list laminar')
+    print('Making the list laminar (parallel)')
     start = time.clock()
     n = len(X)
     with Pool(processes=num_cpu) as pool:
-        func = partial(non_laminar_pairs, L)
+        func = partial(non_laminar, L)
         intersections = pool.map(func, range(n-1))
     intersections = set([item for sublist in intersections for item in sublist])
     while intersections:
@@ -297,6 +297,67 @@ def laminar(L, X, e, g, s):
     L = [item for item in L if item is not None]
     end = time.clock()
     print('time = ', (end - start))
+    return L
+
+
+def non_laminar_pairs(L):
+    """ Return two sets C1 and C2 in L that are not laminar, else return None
+    :param L: List of subsets
+    :return: Two set indices
+    """
+    for i in range(len(L)):
+        for j in range(len(L)):
+            if i == j:
+                continue
+            intersection = L[i].intersection(L[j])
+            if len(intersection) > 0:
+                if L[i].issubset(L[j]) or L[j].issubset(L[i]):
+                    continue
+                else:
+                    return i, j
+    return
+
+
+def sequential_laminar(L, X, e, g, s):
+    """ Make family laminar (Algorithm 9)
+    :param L: List of subsets
+    :param X: The data set
+    :param e: lower bound on the fractional size of every cluster
+    :param g: lower bound on the fractional size of every set in own cluster for which stability holds
+    :param s: lower bound on the fractional size of every set in outside cluster for which stability holds
+    :return: Laminar list
+    """
+    print('Making the list laminar (sequential)')
+    start = time.clock()
+    n = len(X)
+    S = non_laminar_pairs(L)
+    while S is not None:
+        i = S[0]
+        j = S[1]
+        intersection = L[i].intersection(L[j])
+        if len(intersection) > int(s * n):
+            A = intersection
+            C1 = L[i].difference(A)
+            C2 = L[j].difference(A)
+            if inverse_similarity(X, A, C1) <= inverse_similarity(X, A, C2):
+                del L[j]
+            else:
+                del L[i]
+        else:
+            # Intersection is small
+            v = intersection.pop()
+            elem = set_distances(X, {v})
+            t = int((e - g) * n)
+            elem = elem[:t]
+            int1 = len(L[i].intersection(elem))
+            int2 = len(L[j].intersection(elem))
+            if int1 >= int2:
+                del L[j]
+            else:
+                del L[i]
+        S = non_laminar_pairs(L)
+    end = time.clock()
+    print('time = %d' % (end - start))
     return L
 
 
@@ -375,6 +436,9 @@ def test(X, tcluster, k, e):
     print('s = ', s)
     L = threshold(X, e, g, s, k)
     L = laminar(L, X, e, g, s)
+    seq_L = sequential_laminar(L, X, e, g, s)
+    print('Length of L = ', len(L))
+    print('Length of seq_L = ', len(seq_L))
     label = [1]*len(X)
     pruned = prune(L, tcluster, k, label)
     error_dict['threshold'] = pruned[0]
