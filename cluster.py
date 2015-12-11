@@ -436,9 +436,7 @@ def test(X, tcluster, k, e):
     print('s = ', s)
     L = threshold(X, e, g, s, k)
     L = laminar(L, X, e, g, s)
-    seq_L = sequential_laminar(L, X, e, g, s)
     print('Length of L = ', len(L))
-    print('Length of seq_L = ', len(seq_L))
     label = [1]*len(X)
     pruned = prune(L, tcluster, k, label)
     error_dict['threshold'] = pruned[0]
@@ -465,12 +463,15 @@ if __name__ == '__main__':
     print('Shape of X = ', X.shape)
     print('Length of tcluster = ', len(tcluster))
     k = len(set(tcluster))
-    error_dict = test(X, tcluster, k, 1/k)
+    error_dict = test(X, tcluster, k, 1/(2*k))
     error_dict = str(error_dict) + '\n'
     d = dict()
     if os.path.exists(result):
         f = open(result, 'rb')
-        d = pickle.load(f)
+        try:
+            d = pickle.load(f)
+        except EOFError:
+            pass
         f.close()
     f = open(result, 'wb')
     if args.data in d:
