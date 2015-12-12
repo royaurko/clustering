@@ -7,7 +7,6 @@ import time
 import multiprocessing
 import multiprocessing.pool
 from functools import partial
-from functools import reduce
 import os
 import argparse
 import csv
@@ -69,12 +68,30 @@ def error(cluster, tcluster):
     return float(total)/float(n)
 
 
+def compute_norm(X, i, j):
+    """ Return the norm of the difference of X[i] and X[j]
+    :param X: Data set
+    :param i: i^{th} coordinate
+    :param j: j^{th} coordinate
+    :return: norm of X[i]-X[j]
+    """
+    return norm(X[i] - X[j])
+
+
 def get_distance(X, S, i):
+    """ Get average distance of i from S
+    :param X: Data set
+    :param S: Set S
+    :param i: point i
+    :return: Average distance
+    """
     if i in S:
         return None
     S = list(S)
-    norms = map(lambda j: norm(X[i] - X[j]), S)
-    d = reduce(lambda x, y: x + y, norms)
+    with Pool(processes=num_cpu) as pool:
+        func = partial(compute_norm, X, i)
+        norms = pool.map(func, S)
+    d = sum(norms)
     d /= len(S)
     return i, d
 
@@ -86,7 +103,7 @@ def set_distances(X, S):
     :return: Elements outside S sorted by distance to S
     """
     n = len(X)
-    with multiprocessing.Pool(processes=num_cpu) as pool:
+    with Pool(processes=num_cpu) as pool:
         func = partial(get_distance, X, S)
         dist = pool.map(func, range(n))
         pool.close()
@@ -173,6 +190,7 @@ def refine(L, X, D, e, g, s, k):
     :return: Refined clusters
     """
     print('Getting rid of bad points')
+    print('Length of L at start = ', len(L))
     start = time.clock()
     n = len(X)
     T = int((e - 2*g - s*k) * n)
@@ -182,8 +200,8 @@ def refine(L, X, D, e, g, s, k):
         L = pool.map(func, L)
         pool.close()
         pool.join()
-    print('length of L = ' + str(len(L)))
     end = time.clock()
+    print('Length of L on end = ', len(L))
     print('time = ', (end - start))
     return grow(L, X, g)
 
@@ -209,14 +227,15 @@ def grow(L, X, g):
     :return:
     """
     print('Getting back good points')
+    print('Length of L at start = ', len(L))
     start = time.clock()
     n = len(X)
     t = int(g*n)
     with Pool(processes=num_cpu) as pool:
         func = partial(grow_individual, X, t)
         L = pool.map(func, L)
-    print('Length of L = ', len(L))
     end = time.clock()
+    print('Length of L = ', len(L))
     print('time = ', (end - start))
     return L
 
@@ -267,7 +286,7 @@ def mark_non_laminar(L, X, e, g, s, t):
         if inverse_similarity(X, A, C1) <= inverse_similarity(X, A, C2):
             L[j] = None
         else:
-           L[i] = None
+            L[i] = None
     else:
         # Intersection is small
         v = intersection.pop()
@@ -300,12 +319,15 @@ def laminar(L, X, e, g, s):
         intersections = pool.map(func, range(n-1))
     end = time.clock()
     intersections = set([item for sublist in intersections for item in sublist])
+    print('Length of intersections = ', len(intersections))
     print('time = ', end - start)
     print('Removing non-laminar pairs')
     start = time.clock()
-    with Pool(processes=num_cpu) as pool:
-        func = partial(mark_non_laminar, L, X, e, g, s)
-        pool.map(func, intersections)
+    for t in intersections:
+        mark_non_laminar(L, X, e, g, s, t)
+    indicator = map(lambda x: 1 if x is None else 0, L)
+    count = sum(indicator)
+    print('Count of Nones = ', count)
     L = [item for item in L if item is not None]
     end = time.clock()
     print('time = ', (end - start))
@@ -340,6 +362,7 @@ def sequential_laminar(L, X, e, g, s):
     :return: Laminar list
     """
     print('Making the list laminar (sequential)')
+    print('Length of L at start = ', len(L))
     start = time.clock()
     n = len(X)
     S = non_laminar_pairs(L)
@@ -369,7 +392,8 @@ def sequential_laminar(L, X, e, g, s):
                 del L[i]
         S = non_laminar_pairs(L)
     end = time.clock()
-    print('time = %d' % (end - start))
+    print('Length of L at end = ', len(L))
+    print('time = ', end - start)
     return L
 
 
@@ -450,13 +474,13 @@ def test(X, tcluster, k, e):
     f = open('prelaminar.pkl', 'rb')
     L = pickle.load(f)
     f.close()
-    parallel_L = laminar(L, X, e, g, s)
-    f = open('prelaminar.pkl', 'rb')
-    L = pickle.load(f)
-    f.close()
+    # parallel_L = laminar(L, X, e, g, s)
+    #f = open('prelaminar.pkl', 'rb')
+    #L = pickle.load(f)
+    #f.close()
     seq_L = sequential_laminar(L, X, e, g, s)
     f = open('laminar.pkl', 'wb')
-    t = {'parallel': parallel_L, 'seq': seq_L}
+    t = {'parallel': [], 'seq': seq_L}
     pickle.dump(t, f)
     f.close()
     return
@@ -473,22 +497,21 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--data', help='Data file')
     parser.add_argument('-l', '--label', type=int, default=0, help='Column of labels')
     args = parser.parse_args()
-    fname = args.data
+    file_name = args.data
     result = 'results.pkl'
-    reader = csv.reader(open(fname), delimiter=',')
+    reader = csv.reader(open(file_name), delimiter=',')
     X = list()
-    tcluster = list()
+    target_cluster = list()
     for row in reader:
         if row:
             label = row[args.label]
             row.pop(args.label)
             X.append(row)
-            tcluster.append(label)
+            target_cluster.append(label)
     X = np.array(X, dtype=float)
     print('Shape of X = ', X.shape)
-    print('Length of tcluster = ', len(tcluster))
-    k = len(set(tcluster))
-    error_dict = test(X, tcluster, k, 1/(2*k))
+    k = len(set(target_cluster))
+    error_dict = test(X, target_cluster, k, 1/(2*k))
     error_dict = str(error_dict) + '\n'
     d = dict()
     if os.path.exists(result):
