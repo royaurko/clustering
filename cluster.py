@@ -100,7 +100,7 @@ def set_distances(X, S, num_workers):
     :return: Elements outside S sorted by distance to S
     """
     n = len(X)
-    with Pool(processes=num_workers) as pool:
+    with Pool(num_workers) as pool:
         func = partial(get_distance, X, S)
         dist = pool.map(func, range(n))
         pool.close()
@@ -143,7 +143,7 @@ def threshold(X, e, g, s, k, num_workers):
     start = time.clock()
     n = len(X)
     minsize = int(e * n)
-    with Pool(processes=num_workers) as pool:
+    with Pool(num_workers) as pool:
         func = partial(get_thresholds, X, minsize, num_workers)
         items = pool.map(func, range(n))
         pool.close()
@@ -232,7 +232,7 @@ def grow(L, X, g, num_workers):
     start = time.clock()
     n = len(X)
     t = int(g*n)
-    with Pool(processes=num_workers) as pool:
+    with Pool(num_workers) as pool:
         func = partial(grow_individual, X, t, num_workers)
         L = pool.map(func, L)
         pool.close()
@@ -327,7 +327,7 @@ def laminar(L, X, e, g, s, num_workers):
     start = time.clock()
     n = len(X)
     print('Computing pairs of non-laminar sets')
-    with Pool(processes=num_workers) as pool:
+    with Pool(num_workers) as pool:
         func = partial(non_laminar, L)
         intersections = pool.map(func, range(len(L)-1))
         pool.close()
@@ -338,7 +338,7 @@ def laminar(L, X, e, g, s, num_workers):
     print('time = ', end - start)
     print('Removing non-laminar pairs')
     start = time.clock()
-    with Pool(processes=num_workers) as pool:
+    with Pool(num_workers) as pool:
         func = partial(mark_non_laminar, L, X, e, g, s, num_workers)
         pool.map(func, intersections)
         pool.close()
