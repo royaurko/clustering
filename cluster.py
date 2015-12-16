@@ -27,20 +27,20 @@ class Pool(multiprocessing.pool.Pool):
     Process = NoDaemonProcess
 
 
-def error(cluster, tcluster):
+def error(cluster, target_cluster):
     """ Compute error between cluster and target cluster
     :param cluster: proposed cluster
-    :param tcluster: target cluster
+    :param target_cluster: target cluster
     :return: error
     """
-    k = len(set(tcluster))
-    n = len(tcluster)
+    k = len(set(target_cluster))
+    n = len(target_cluster)
     C = list()
     T = list()
     for i in range(1, k+1):
         tmp = {j for j in range(n) if cluster[j] == i}
         C.append(tmp)
-        tmp = {j for j in range(n) if tcluster[j] == i}
+        tmp = {j for j in range(n) if target_cluster[j] == i}
         T.append(tmp)
     M = list()
     for i in range(k):
@@ -338,12 +338,14 @@ def laminar(L, X, e, g, s, num_workers):
     print('time = ', end - start)
     print('Removing non-laminar pairs')
     start = time.clock()
+    manager = multiprocessing.Manager()
+    shared = manager.list(L)
     with Pool(num_workers) as pool:
-        func = partial(mark_non_laminar, L, X, e, g, s, num_workers)
+        func = partial(mark_non_laminar, shared, X, e, g, s, num_workers)
         pool.map(func, intersections)
         pool.close()
         pool.join()
-    L = [item for item in L if item is not None]
+    L = [item for item in shared if item is not None]
     end = time.clock()
     print('Length of list after removing non-laminar pairs = ', len(L))
     print('time = ', (end - start))
