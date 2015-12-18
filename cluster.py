@@ -485,6 +485,7 @@ def main(file_name, data_label, num_workers):
             d[file_name].append(error_dict)
         else:
             d[file_name] = [error_dict]
+        pickle.dump(d, f)
 
 
 if __name__ == '__main__':
