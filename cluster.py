@@ -475,18 +475,16 @@ def main(file_name, data_label, num_workers):
     error_dict = str(error_dict) + '\n'
     d = dict()
     if os.path.exists(result):
-        f = open(result, 'rb')
-        try:
-            d = pickle.load(f)
-        except EOFError:
-            pass
-        f.close()
-    f = open(result, 'wb')
-    if file_name in d:
-        d[file_name].append(error_dict)
-    else:
-        d[file_name] = [error_dict]
-    f.close()
+        with open(result, 'rb') as f:
+            try:
+                d = pickle.load(f)
+            except EOFError:
+                pass
+    with open(result, 'wb') as f:
+        if file_name in d:
+            d[file_name].append(error_dict)
+        else:
+            d[file_name] = [error_dict]
 
 
 if __name__ == '__main__':
