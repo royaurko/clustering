@@ -25,7 +25,7 @@ Authors (manuscript): Aurko Roy, Sadra Yazdanbod and Daniel Zink
 To run the algorithm type
 
 ```shell
-python cluster.py -d [data] -l [label_index] -n [num_workers]
+python3 cluster.py -d [data] -l [label_index] -n [num_workers]
 ```
 
 where `[data]` is the path to your data file (comma delimited), `[label_index]` is the index of the column
