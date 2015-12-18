@@ -6,11 +6,13 @@ from munkres import Munkres
 import time
 import multiprocessing
 import multiprocessing.pool
+from multiprocessing import Process, Manager
 from functools import partial
 import os
 import argparse
 import csv
 import pickle
+import gzip
 
 
 class NoDaemonProcess(multiprocessing.Process):
@@ -262,6 +264,7 @@ def inverse_similarity(X, A, B):
 def non_laminar(L, i):
     """ Return all sets in L[i+1], ..., L[n-1] that are non-laminar with respect to L[i]
     :param L: List of subsets
+    :param i: index in L from which on we computer intersections
     :return: Tuple (i, list) where list is a list of indices of sets in L[i+1], ..., L[n-1] that are non-laminar
     """
     indices = list()
@@ -314,6 +317,20 @@ def mark_non_laminar(L, X, e, g, s, num_workers, t):
             L[i] = None
 
 
+def iterate_laminar(L, X, e, g, s, num_workers, intersections):
+    """
+    :param L: List of candidate clusters
+    :param X: data set
+    :param e: parameter
+    :param g: parameter
+    :param s: parameter
+    :param num_workers: number of workers
+    :param intersections: List of intersections
+    """
+    for item in intersections:
+        mark_non_laminar(L, X, e, g, s, num_workers, item)
+
+
 def laminar(L, X, e, g, s, num_workers):
     """ Make family laminar (Algorithm 9)
     :param L: List of subsets
@@ -332,18 +349,18 @@ def laminar(L, X, e, g, s, num_workers):
         intersections = pool.map(func, range(len(L)-1))
         pool.close()
         pool.join()
-    end = time.clock()
     intersections = [item for sub_list in intersections for item in sub_list]
+    end = time.clock()
     print('Length of intersections = ', len(intersections))
     print('time = ', end - start)
     print('Removing non-laminar pairs')
     start = time.clock()
-    with Pool(num_workers) as pool:
-        func = partial(mark_non_laminar, L, X, e, g, s, num_workers)
-        pool.map(func, intersections)
-        pool.close()
-        pool.join()
-    L = [item for item in L if item is not None]
+    manager = Manager()
+    shared_L = manager.list(L)
+    process = Process(target=make_laminar, args=(shared_L, X, e, g, s, num_workers, intersections))
+    process.start()
+    process.join()
+    L = [item for item in shared_L if item is not None]
     end = time.clock()
     print('Length of list after removing non-laminar pairs = ', len(L))
     print('time = ', (end - start))
@@ -425,35 +442,37 @@ def test(X, target_cluster, k, e, num_workers):
     print('g = ', g)
     print('s = ', s)
     L = threshold(X, e, g, s, k, num_workers)
-    L = laminar(L, X, e, g, s, num_workers)
-    print('Length of L = ', len(L))
+    laminar_L = laminar(L, X, e, g, s, num_workers)
+    print('Length of laminar L = ', len(laminar_L))
+    f = open('laminar.pkl', 'wb')
+    pickle.dump(laminar_L, f)
+    f.close()
     label = [1]*len(X)
     pruned = prune(L, target_cluster, k, label)
     error_dict['threshold'] = pruned[0]
     return error_dict
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--data', help='Data file')
-    parser.add_argument('-l', '--label', type=int, default=0, help='Column of labels')
-    parser.add_argument('-n', '--num_workers', type=int, default=1, help='Number of workers')
-    args = parser.parse_args()
-    file_name = args.data
+def main(file_name, data_label, num_workers):
+    """
+    :param file_name: Name of file containing data
+    :param data_label: column of data where label is
+    :param num_workers: number of workers
+    """
     result = 'results.pkl'
     reader = csv.reader(open(file_name), delimiter=',')
     X = list()
     target_cluster = list()
     for row in reader:
         if row:
-            label = row[args.label]
-            row.pop(args.label)
+            label = row[data_label]
+            row.pop(data_label)
             X.append(row)
             target_cluster.append(label)
     X = np.array(X, dtype=float)
     print('Shape of X = ', X.shape)
     k = len(set(target_cluster))
-    error_dict = test(X, target_cluster, k, 1/(2*k), args.num_workers)
+    error_dict = test(X, target_cluster, k, 1/(2*k), num_workers)
     error_dict = str(error_dict) + '\n'
     d = dict()
     if os.path.exists(result):
@@ -464,12 +483,17 @@ def main():
             pass
         f.close()
     f = open(result, 'wb')
-    if args.data in d:
-        d[args.data].append(error_dict)
+    if file_name in d:
+        d[file_name].append(error_dict)
     else:
-        d[args.data] = [error_dict]
+        d[file_name] = [error_dict]
     f.close()
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--data', help='Data file')
+    parser.add_argument('-l', '--label', type=int, default=0, help='Column of labels')
+    parser.add_argument('-n', '--num_workers', type=int, default=1, help='Number of workers')
+    args = parser.parse_args()
+    main(args.data, args.label, args.num_workers)
