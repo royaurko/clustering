@@ -470,7 +470,7 @@ def main(file_name, data_label, num_workers):
     X = np.array(X, dtype=float)
     target_cluster = np.array(target_cluster, dtype=int)
     k = len(set(target_cluster))
-    error_dict = test(X, target_cluster, k, 1/(2*k), num_workers)
+    error_dict = test(X, target_cluster, k, 1/(3*k), num_workers)
     print(error_dict)
     error_dict = str(error_dict) + '\n'
     d = dict()

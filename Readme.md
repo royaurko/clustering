@@ -25,11 +25,12 @@ Authors (manuscript): Aurko Roy, Sadra Yazdanbod and Daniel Zink
 To run the algorithm type
 
 ```shell
-python cluster.py -d [data] -l [label_index]
+python cluster.py -d [data] -l [label_index] -n [num_workers]
 ```
 
-where `[data]` is the path to your data file (comma delimited), and `[label_index]` is the index of the column
-in the data file that contains the actual labels (usually 0). Results are stored in a 
+where `[data]` is the path to your data file (comma delimited), `[label_index]` is the index of the column
+in the data file that contains the actual labels (default 0) and `[num_workers]` is the number of workers (cores)
+you want to use for parallelization (default 1). Results are stored in a 
 pickle file named `results.pkl` with the following information:
  error on this clustering algorithm together with error on some standard clustering algorithms -
 **single linkage**, **average linkage**, **complete linkage** and **Ward's method**.
