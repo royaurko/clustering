@@ -357,7 +357,7 @@ def laminar(L, X, e, g, s, num_workers):
     start = time.clock()
     manager = Manager()
     shared_L = manager.list(L)
-    process = Process(target=make_laminar, args=(shared_L, X, e, g, s, num_workers, intersections))
+    process = Process(target=iterate_laminar, args=(shared_L, X, e, g, s, num_workers, intersections))
     process.start()
     process.join()
     L = [item for item in shared_L if item is not None]
@@ -375,7 +375,6 @@ def prune(L, target_cluster, k, label):
     :param label: label of every element
     :return:
     """
-    print('Pruning the tree for the best cluster')
     if not L:
         #  Empty list
         return error(label, target_cluster), label
@@ -442,12 +441,11 @@ def test(X, target_cluster, k, e, num_workers):
     print('g = ', g)
     print('s = ', s)
     L = threshold(X, e, g, s, k, num_workers)
-    laminar_L = laminar(L, X, e, g, s, num_workers)
-    print('Length of laminar L = ', len(laminar_L))
-    f = open('laminar.pkl', 'wb')
-    pickle.dump(laminar_L, f)
-    f.close()
+    L = laminar(L, X, e, g, s, num_workers)
+    with open('laminar.pkl', 'wb') as f:
+        pickle.dump(laminar_L, f)
     label = [1]*len(X)
+    print('Pruning the tree for the best cluster')
     pruned = prune(L, target_cluster, k, label)
     error_dict['threshold'] = pruned[0]
     return error_dict
@@ -470,9 +468,10 @@ def main(file_name, data_label, num_workers):
             X.append(row)
             target_cluster.append(label)
     X = np.array(X, dtype=float)
-    print('Shape of X = ', X.shape)
+    target_cluster = np.array(target_cluster, dtype=int)
     k = len(set(target_cluster))
     error_dict = test(X, target_cluster, k, 1/(2*k), num_workers)
+    print(error_dict)
     error_dict = str(error_dict) + '\n'
     d = dict()
     if os.path.exists(result):
