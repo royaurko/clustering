@@ -29,20 +29,20 @@ class Pool(multiprocessing.pool.Pool):
     Process = NoDaemonProcess
 
 
-def error(cluster, tcluster):
+def error(cluster, target_cluster):
     """ Compute error between cluster and target cluster
     :param cluster: proposed cluster
-    :param tcluster: target cluster
+    :param target_cluster: target cluster
     :return: error
     """
-    k = len(set(tcluster))
-    n = len(tcluster)
+    k = len(set(target_cluster))
+    n = len(target_cluster)
     C = list()
     T = list()
     for i in range(1, k+1):
         tmp = {j for j in range(n) if cluster[j] == i}
         C.append(tmp)
-        tmp = {j for j in range(n) if tcluster[j] == i}
+        tmp = {j for j in range(n) if target_cluster[j] == i}
         T.append(tmp)
     M = list()
     for i in range(k):
