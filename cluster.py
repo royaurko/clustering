@@ -177,7 +177,7 @@ def threshold(X, e, g, s, k, num_workers, metric):
     :return: Threshold clusters
     """
     print('Populating list with all threshold clusters with metric:', metric)
-    start = time.clock()
+    start = time.time()
     n = len(X)
     minsize = int(e * n)
     with Pool(num_workers) as pool:
@@ -188,9 +188,9 @@ def threshold(X, e, g, s, k, num_workers, metric):
     threshold_lists = [item[0] for item in items]
     L = [item for sublist in threshold_lists for item in sublist]
     D = dict([(item[1], item[2]) for item in items])
-    end = time.clock()
+    end = time.time()
     print('Length of L = ', len(L))
-    print('time = ', (end - start))
+    print('time = {0:.2f}s'.format(end - start))
     return refine(L, X, D, e, g, s, k, num_workers, metric)
 
 
@@ -229,7 +229,7 @@ def refine(L, X, D, e, g, s, k, num_workers, metric):
     """
     print('Getting rid of bad points')
     print('Length of L at start = ', len(L))
-    start = time.clock()
+    start = time.time()
     n = len(X)
     T = int((e - 2*g - s*k) * n)
     t = int((e - g) * n)
@@ -238,9 +238,9 @@ def refine(L, X, D, e, g, s, k, num_workers, metric):
         L = pool.map(func, L)
         pool.close()
         pool.join()
-    end = time.clock()
+    end = time.time()
     print('Length of L on end = ', len(L))
-    print('time = ', (end - start))
+    print('time = {0:.2f}s'.format(end - start))
     return grow(L, X, g, num_workers, metric)
 
 
@@ -270,7 +270,7 @@ def grow(L, X, g, num_workers, metric):
     """
     print('Getting back good points')
     print('Length of L at start = ', len(L))
-    start = time.clock()
+    start = time.time()
     n = len(X)
     t = int(g*n)
     with Pool(num_workers) as pool:
@@ -278,9 +278,9 @@ def grow(L, X, g, num_workers, metric):
         L = pool.map(func, L)
         pool.close()
         pool.join()
-    end = time.clock()
+    end = time.time()
     print('Length of L = ', len(L))
-    print('time = ', (end - start))
+    print('time = {0:.2f}s'.format(end - start))
     return L
 
 
@@ -393,7 +393,7 @@ def laminar(L, X, e, g, s, num_workers, metric):
     :return: Laminar list
     """
     print('Making the list laminar (parallel)')
-    start = time.clock()
+    start = time.time()
     n = len(X)
     print('Computing pairs of non-laminar sets')
     with Pool(num_workers) as pool:
@@ -402,14 +402,14 @@ def laminar(L, X, e, g, s, num_workers, metric):
         pool.close()
         pool.join()
     intersections = [item for sub_list in intersections for item in sub_list]
-    end = time.clock()
+    end = time.time()
     fname = 'intersections_' + metric + '.pkl.gz'
     with gzip.open(fname, 'wb') as f:
         pickle.dump(intersections, f)
     print('Length of intersections = ', len(intersections))
-    print('time = ', end - start)
+    print('time = {0:0.2f}s'.format(end - start))
     print('Removing non-laminar pairs')
-    start = time.clock()
+    start = time.time()
     manager = Manager()
     shared_L = manager.list(L)
     n = len(intersections)
@@ -429,9 +429,9 @@ def laminar(L, X, e, g, s, num_workers, metric):
     for p in jobs:
         p.join()
     L = [item for item in shared_L if item is not None]
-    end = time.clock()
+    end = time.time()
     print('Length of list after removing non-laminar pairs = ', len(L))
-    print('time = ', (end - start))
+    print('time = {0:.2f}s'.format(end - start))
     return L
 
 
@@ -512,19 +512,20 @@ def test(X, target_cluster, k, e, num_workers):
     metrics = ['max', 'min', 'avg']
     for metric in metrics:
         L = threshold(X, e, g, s, k, num_workers, metric)
-        prelaminar = 'prelaminar_' + metric
-        with open(prelaminar, 'wb') as f:
+        prelaminar_name = 'prelaminar_' + metric
+        with open(prelaminar_name, 'wb') as f:
             pickle.dump(L, f)
         L = laminar(L, X, e, g, s, num_workers, metric)
-        laminar = 'laminar_' + metric
-        with open(laminar, 'wb') as f:
+        laminar_name = 'laminar_' + metric
+        with open(laminar_name, 'wb') as f:
             pickle.dump(L, f)
         label = [1]*len(X)
         print('Pruning the tree for the best cluster')
         pruned = prune(L, target_cluster, k, label)
         threshold_key = 'threshold_' + metric
         error_dict[threshold_key] = pruned[0]
-        return error_dict
+        print('Error on metric: {} is {}'.format(meric, pruned[0]))
+    return error_dict
 
 
 def main(file_name, data_label, num_workers):
@@ -547,7 +548,7 @@ def main(file_name, data_label, num_workers):
     target_cluster = np.array(target_cluster, dtype=int)
     k = len(set(target_cluster))
     error_dict = test(X, target_cluster, k, 1/(2*k), num_workers)
-    print(error_dict)
+    print('Error dict = ', error_dict)
     error_dict = str(error_dict) + '\n'
     d = dict()
     if os.path.exists(result):
