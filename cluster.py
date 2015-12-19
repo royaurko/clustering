@@ -78,7 +78,7 @@ def compute_norm(X, i, j):
     return norm(X[i] - X[j])
 
 
-def get_distance(X, S, i):
+def get_avg_distance(X, S, i):
     """ Get average distance of i from S
     :param X: Data set
     :param S: Set S
@@ -94,14 +94,47 @@ def get_distance(X, S, i):
     return i, d
 
 
-def set_distances(X, S, num_workers):
+def get_max_distance(X, S, i):
+    """ Get max distance of i from S
+    :param X: Data set
+    :param S: Set S
+    :param i: point i
+    :return: Max distance
+    """
+    if i in S:
+        return None
+    d = max([norm(X[i] - X[j]) for j in S])
+    return d
+
+
+def get_min_distance(X, S, i):
+    """ Get min distance of i from S
+    :param X: Data set
+    :param S: Set S
+    :param i: point i
+    :return: Min distance
+    """
+    if i in S:
+        return None
+    d = min([norm(X[i] - X[j]) for j in S])
+    return d
+
+
+def set_distances(X, S, num_workers, metric):
     """ Return the elements outside S sorted by distance to S
     :param X: Data matrix
     :param S: set of points
     :param num_workers: Number of workers
+    :param metric: metric is in the set {avg, min, max}
     :return: Elements outside S sorted by distance to S
     """
     n = len(X)
+    if metric == 'avg':
+        get_distance = get_avg_distance
+    elif metric == 'max':
+        get_distance = get_max_distance
+    else:
+        get_distance = get_min_distance
     with Pool(num_workers) as pool:
         func = partial(get_distance, X, S)
         dist = pool.map(func, range(n))
@@ -113,16 +146,17 @@ def set_distances(X, S, num_workers):
     return elem
 
 
-def get_thresholds(X, minsize, num_workers, i):
+def get_thresholds(X, minsize, num_workers, metric, i):
     """ Get the threshold cluster for the i^{th} element of X
     :param X: Data set
     :param D: Dictionary
     :param minsize: Minimum size of a cluster
     :param num_workers: Number of workers
+    :param metric: metric is in the set {avg, min, max}
     :param i: element is X[i]
     :return:
     """
-    elem = set_distances(X, {i}, num_workers)
+    elem = set_distances(X, {i}, num_workers, metric)
     thresholds = []
     for j in range(minsize - 1, len(elem)):
         cluster = set(elem[:j])
@@ -131,7 +165,7 @@ def get_thresholds(X, minsize, num_workers, i):
     return thresholds, i, elem
 
 
-def threshold(X, e, g, s, k, num_workers):
+def threshold(X, e, g, s, k, num_workers, metric):
     """ Get all threshold clusters (algorithm 7, lines 1-6)
     :param X: Data matrix
     :param e: lower bound on fractional size of each cluster
@@ -139,14 +173,15 @@ def threshold(X, e, g, s, k, num_workers):
     :param s: lower bound on fractional size of a set outside own cluster for which stability holds
     :param k: Number of clusters
     :param num_workers: Number of workers
+    :param metric: metric is in the set {avg, min, max}
     :return: Threshold clusters
     """
-    print('Populating list with all threshold clusters')
+    print('Populating list with all threshold clusters with metric ', metric)
     start = time.clock()
     n = len(X)
     minsize = int(e * n)
     with Pool(num_workers) as pool:
-        func = partial(get_thresholds, X, minsize, num_workers)
+        func = partial(get_thresholds, X, minsize, num_workers, metric)
         items = pool.map(func, range(n))
         pool.close()
         pool.join()
@@ -377,13 +412,11 @@ def laminar(L, X, e, g, s, num_workers):
         process = Process(target=iterate_laminar, args=(shared_L, X, e, g, s, num_workers, intersections[j: j + batch]))
         process.start()
         jobs.append(process)
-        # process.join()
         j += batch
     if rem:
         process = Process(target=iterate_laminar, args=(shared_L, X, e, g, s, num_workers, intersections[j: j + rem]))
         process.start()
         jobs.append(process)
-        # process.join()
     for p in jobs:
         p.join()
     L = [item for item in shared_L if item is not None]
@@ -466,16 +499,39 @@ def test(X, target_cluster, k, e, num_workers):
     print('e = ', e)
     print('g = ', g)
     print('s = ', s)
-    # L = threshold(X, e, g, s, k, num_workers)
-    with open('prelaminar.pkl', 'rb') as f:
-        L = pickle.load(f)
+    # First compute with metric avg
+    L = threshold(X, e, g, s, k, num_workers, 'avg')
+    with open('prelaminar_avg.pkl', 'wb') as f:
+        pickle.dump(L, f)
     L = laminar(L, X, e, g, s, num_workers)
-    with open('laminar.pkl', 'wb') as f:
-        pickle.dump(laminar_L, f)
+    with open('laminar_avg.pkl', 'wb') as f:
+        pickle.dump(L, f)
     label = [1]*len(X)
     print('Pruning the tree for the best cluster')
     pruned = prune(L, target_cluster, k, label)
-    error_dict['threshold'] = pruned[0]
+    error_dict['threshold_avg'] = pruned[0]
+    # Next compute with metric max
+    L = threshold(X, e, g, s, k, num_workers, 'max')
+    with open('prelaminar_max.pkl', 'wb') as f:
+        pickle.dump(L, f)
+    L = laminar(L, X, e, g, s, num_workers)
+    with open('laminar_max.pkl', 'wb') as f:
+        pickle.dump(L, f)
+    label = [1]*len(X)
+    print('Pruning the tree for the best cluster')
+    pruned = prune(L, target_cluster, k, label)
+    error_dict['threshold_max'] = pruned[0]
+    # Finally compute with metric min
+    L = threshold(X, e, g, s, k, num_workers, 'min')
+    with open('prelaminar_min.pkl', 'wb') as f:
+        pickle.dump(L, f)
+    L = laminar(L, X, e, g, s, num_workers)
+    with open('laminar_min.pkl', 'wb') as f:
+        pickle.dump(L, f)
+    label = [1]*len(X)
+    print('Pruning the tree for the best cluster')
+    pruned = prune(L, target_cluster, k, label)
+    error_dict['threshold_min'] = pruned[0]
     return error_dict
 
 
