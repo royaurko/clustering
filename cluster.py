@@ -294,7 +294,10 @@ def mark_non_laminar(L, X, e, g, s, num_workers, t):
     if L[i] is None or L[j] is None:
         return
     n = len(X)
-    intersection = L[i].intersection(L[j])
+    try:
+        intersection = L[i].intersection(L[j])
+    except AttributeError:
+        return
     if len(intersection) > int(s * n):
         A = intersection
         C1 = L[i].difference(A)
@@ -309,8 +312,14 @@ def mark_non_laminar(L, X, e, g, s, num_workers, t):
         elem = set_distances(X, {v}, num_workers)
         t = int((e - g) * n)
         elem = elem[:t]
-        int1 = len(L[i].intersection(elem))
-        int2 = len(L[j].intersection(elem))
+        try:
+            int1 = len(L[i].intersection(elem))
+        except AttributeError:
+            return
+        try:
+            int2 = len(L[j].intersection(elem))
+        except AttributeError:
+            return
         if int1 >= int2:
             L[j] = None
         else:
@@ -344,22 +353,39 @@ def laminar(L, X, e, g, s, num_workers):
     start = time.clock()
     n = len(X)
     print('Computing pairs of non-laminar sets')
-    with Pool(num_workers) as pool:
-        func = partial(non_laminar, L)
-        intersections = pool.map(func, range(len(L)-1))
-        pool.close()
-        pool.join()
-    intersections = [item for sub_list in intersections for item in sub_list]
+    # with Pool(num_workers) as pool:
+    #    func = partial(non_laminar, L)
+    #    intersections = pool.map(func, range(len(L)-1))
+    #    pool.close()
+    #    pool.join()
+    # intersections = [item for sub_list in intersections for item in sub_list]
     end = time.clock()
+    with gzip.open('intersections.pkl.gz', 'rb') as f:
+        intersections = pickle.load(f)
     print('Length of intersections = ', len(intersections))
     print('time = ', end - start)
     print('Removing non-laminar pairs')
     start = time.clock()
     manager = Manager()
     shared_L = manager.list(L)
-    process = Process(target=iterate_laminar, args=(shared_L, X, e, g, s, num_workers, intersections))
-    process.start()
-    process.join()
+    n = len(intersections)
+    j = 0
+    batch = int(n/num_workers)
+    rem = n % num_workers
+    jobs = []
+    for i in range(num_workers):
+        process = Process(target=iterate_laminar, args=(shared_L, X, e, g, s, num_workers, intersections[j: j + batch]))
+        process.start()
+        jobs.append(process)
+        # process.join()
+        j += batch
+    if rem:
+        process = Process(target=iterate_laminar, args=(shared_L, X, e, g, s, num_workers, intersections[j: j + rem]))
+        process.start()
+        jobs.append(process)
+        # process.join()
+    for p in jobs:
+        p.join()
     L = [item for item in shared_L if item is not None]
     end = time.clock()
     print('Length of list after removing non-laminar pairs = ', len(L))
@@ -440,7 +466,9 @@ def test(X, target_cluster, k, e, num_workers):
     print('e = ', e)
     print('g = ', g)
     print('s = ', s)
-    L = threshold(X, e, g, s, k, num_workers)
+    # L = threshold(X, e, g, s, k, num_workers)
+    with open('prelaminar.pkl', 'rb') as f:
+        L = pickle.load(f)
     L = laminar(L, X, e, g, s, num_workers)
     with open('laminar.pkl', 'wb') as f:
         pickle.dump(laminar_L, f)
