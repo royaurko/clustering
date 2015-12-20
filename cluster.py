@@ -331,17 +331,18 @@ def mark_non_laminar(L, X, e, g, s, num_workers, metric, t):
     :return: None, mark either L[i] or L[j] None
     """
     i, j = t[0], t[1]
-    if L[i] is None or L[j] is None:
-        return
     n = len(X)
     try:
         intersection = L[i].intersection(L[j])
-    except AttributeError:
+    except:
         return
     if len(intersection) > int(s * n):
         A = intersection
-        C1 = L[i].difference(A)
-        C2 = L[j].difference(A)
+        try:
+            C1 = L[i].difference(A)
+            C2 = L[j].difference(A)
+        except:
+            return
         if inverse_similarity(X, A, C1) <= inverse_similarity(X, A, C2):
             L[j] = None
         else:
@@ -354,11 +355,8 @@ def mark_non_laminar(L, X, e, g, s, num_workers, metric, t):
         elem = elem[:t]
         try:
             int1 = len(L[i].intersection(elem))
-        except AttributeError:
-            return
-        try:
             int2 = len(L[j].intersection(elem))
-        except AttributeError:
+        except:
             return
         if int1 >= int2:
             L[j] = None
@@ -524,7 +522,7 @@ def test(X, target_cluster, k, e, num_workers):
         pruned = prune(L, target_cluster, k, label)
         threshold_key = 'threshold_' + metric
         error_dict[threshold_key] = pruned[0]
-        print('Error on metric: {} is {}'.format(meric, pruned[0]))
+        print('Error on metric: {} is {}'.format(metric, pruned[0]))
     return error_dict
 
 
