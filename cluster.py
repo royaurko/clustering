@@ -480,17 +480,23 @@ def prune(L, target_cluster, k, label):
     return result, label
 
 
-def test(X, target_cluster, k, e, num_workers):
+def test(X, target_cluster, params, metric, num_workers):
     """ Test error on a data set
     :param X: Data  matrix
     :param target_cluster: Target clusters
-    :param k: Number of target clusters
-    :param e: Between (0, 1) represents minimum size of a cluster
+    :param params: contains the parameters of the algorithm
+    :param metric: Metric is in {avg, max, min}
     :param num_workers: Number of workers
     :return: None, print results
     """
-    k = int(k)
-    e = float(e)
+    k = params['k']
+    e = params['e']
+    g = params['g']
+    s = params['s']
+    print('k = ', k)
+    print('e = ', e)
+    print('g = ', g)
+    print('s = ', s)
     y = pdist(X, metric='euclidean')
     Z = list()
     Z.append(hac.linkage(y, method='single'))
@@ -500,39 +506,31 @@ def test(X, target_cluster, k, e, num_workers):
     other_clusters = [hac.fcluster(x, k, 'maxclust') for x in Z]
     errors = [error(x, target_cluster) for x in other_clusters]
     error_dict = {'single linkage': errors[0], 'complete linkage': errors[1], 'average linkage': errors[2], 'ward': errors[3]}
-    s = (0.8*e)/(2*k + 1)
-    g = 0.8*0.2*e
-    print('k = ', k)
-    print('e = ', e)
-    print('g = ', g)
-    print('s = ', s)
-    # First compute with metric max
-    metrics = ['max', 'min', 'avg']
-    for metric in metrics:
-        L = threshold(X, e, g, s, k, num_workers, metric)
-        prelaminar_name = 'prelaminar_' + metric
-        with open(prelaminar_name, 'wb') as f:
-            pickle.dump(L, f)
-        L = laminar(L, X, e, g, s, num_workers, metric)
-        laminar_name = 'laminar_' + metric
-        with open(laminar_name, 'wb') as f:
-            pickle.dump(L, f)
-        label = [1]*len(X)
-        print('Pruning the tree for the best cluster')
-        pruned = prune(L, target_cluster, k, label)
-        threshold_key = 'threshold_' + metric
-        error_dict[threshold_key] = pruned[0]
-        print('Error on metric: {} is {}'.format(metric, pruned[0]))
+    L = threshold(X, e, g, s, k, num_workers, metric)
+    prelaminar_name = 'prelaminar_' + metric
+    with open(prelaminar_name, 'wb') as f:
+        pickle.dump(L, f)
+    L = laminar(L, X, e, g, s, num_workers, metric)
+    laminar_name = 'laminar_' + metric
+    with open(laminar_name, 'wb') as f:
+        pickle.dump(L, f)
+    label = [1]*len(X)
+    print('Pruning the tree for the best cluster')
+    pruned = prune(L, target_cluster, k, label)
+    threshold_key = 'threshold_' + metric
+    error_dict[threshold_key] = pruned[0]
+    print('Error on metric: {} is {}'.format(metric, pruned[0]))
     return error_dict
 
 
-def main(file_name, data_label, num_workers):
+def main(file_name, data_label, metric, out_file, num_workers):
     """
     :param file_name: Name of file containing data
     :param data_label: column of data where label is
+    :param metric: Metric is in {avg, max, min}
+    :param out_file: Name of pickle file to store result
     :param num_workers: number of workers
     """
-    result = 'results.pkl'
     reader = csv.reader(open(file_name), delimiter=',')
     X = list()
     target_cluster = list()
@@ -545,28 +543,21 @@ def main(file_name, data_label, num_workers):
     X = np.array(X, dtype=float)
     target_cluster = np.array(target_cluster, dtype=int)
     k = len(set(target_cluster))
-    error_dict = test(X, target_cluster, k, 1/(2*k), num_workers)
-    print('Error dict = ', error_dict)
-    error_dict = str(error_dict) + '\n'
-    d = dict()
-    if os.path.exists(result):
-        with open(result, 'rb') as f:
-            try:
-                d = pickle.load(f)
-            except EOFError:
-                pass
-    with open(result, 'wb') as f:
-        if file_name in d:
-            d[file_name].append(error_dict)
-        else:
-            d[file_name] = [error_dict]
-        pickle.dump(d, f)
+    e = 1/(2*k)
+    # Create the params dictionary to pass to test()
+    params = {'k': k, 'e': e, 's': (0.8*e)/(2*k + 1), 'g': 0.8*0.2*e}
+    error_dict = test(X, target_cluster, params, metric, num_workers)
+    print('Errors = ', error_dict)
+    with open(out_file, 'wb') as f:
+        pickle.dump(error_dict, f)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--data', help='Data file')
     parser.add_argument('-l', '--label', type=int, default=0, help='Column of labels')
+    parser.add_argument('-m', '--metric', default='avg', help='Can be one of {avg, max, min}')
+    parser.add_argument('-o', '--out_file', default='result.pkl', help='Pickle file to store the result')
     parser.add_argument('-n', '--num_workers', type=int, default=1, help='Number of workers')
     args = parser.parse_args()
-    main(args.data, args.label, args.num_workers)
+    main(args.data, args.label, args.metric, args.out_file, args.num_workers)
