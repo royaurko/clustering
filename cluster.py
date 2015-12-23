@@ -12,7 +12,6 @@ import os
 import argparse
 import csv
 import pickle
-import gzip
 
 
 class NoDaemonProcess(multiprocessing.Process):
@@ -336,14 +335,16 @@ def mark_non_laminar(L, X, e, g, s, num_workers, metric, t):
         intersection = L[i].intersection(L[j])
     except:
         return
-    if len(intersection) > int(s * n):
+    if len(intersection) > max(int(s * n), int(g * n)):
         A = intersection
         try:
             C1 = L[i].difference(A)
             C2 = L[j].difference(A)
         except:
             return
-        if inverse_similarity(X, A, C1) <= inverse_similarity(X, A, C2):
+        x = C1.pop()
+        y = C2.pop()
+        if inverse_similarity(X, A, {x}) <= inverse_similarity(X, A, {y}):
             L[j] = None
         else:
             L[i] = None
@@ -402,8 +403,6 @@ def laminar(L, X, e, g, s, num_workers, metric):
     intersections = [item for sub_list in intersections for item in sub_list]
     end = time.time()
     fname = 'intersections_' + metric + '.pkl.gz'
-    # with gzip.open(fname, 'wb') as f:
-    #    pickle.dump(intersections, f)
     print('Length of intersections = ', len(intersections))
     print('time = {0:0.2f}s'.format(end - start))
     print('Removing non-laminar pairs')
@@ -547,7 +546,7 @@ def main(file_name, data_label, metric, out_file, num_workers):
     k = len(set(target_cluster))
     e = 1/(3*k)
     # Create the params dictionary to pass to test()
-    params = {'k': k, 'e': e, 's': (0.8*e)/(2*k + 1), 'g': 0.8*0.1*e}
+    params = {'k': k, 'e': e, 's': (0.8*e)/(2*k + 1), 'g': 0.8*0.2*e}
     error_dict = test(X, target_cluster, params, metric, num_workers)
     print('Errors = ', error_dict)
     with open(out_file, 'wb') as f:
