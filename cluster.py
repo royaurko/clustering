@@ -402,8 +402,8 @@ def laminar(L, X, e, g, s, num_workers, metric):
     intersections = [item for sub_list in intersections for item in sub_list]
     end = time.time()
     fname = 'intersections_' + metric + '.pkl.gz'
-    with gzip.open(fname, 'wb') as f:
-        pickle.dump(intersections, f)
+    # with gzip.open(fname, 'wb') as f:
+    #    pickle.dump(intersections, f)
     print('Length of intersections = ', len(intersections))
     print('time = {0:0.2f}s'.format(end - start))
     print('Removing non-laminar pairs')
@@ -531,6 +531,8 @@ def main(file_name, data_label, metric, out_file, num_workers):
     :param out_file: Name of pickle file to store result
     :param num_workers: number of workers
     """
+    if metric not in {'avg', 'max', 'min'}:
+        return
     reader = csv.reader(open(file_name), delimiter=',')
     X = list()
     target_cluster = list()
@@ -543,9 +545,9 @@ def main(file_name, data_label, metric, out_file, num_workers):
     X = np.array(X, dtype=float)
     target_cluster = np.array(target_cluster, dtype=int)
     k = len(set(target_cluster))
-    e = 1/(2*k)
+    e = 1/(3*k)
     # Create the params dictionary to pass to test()
-    params = {'k': k, 'e': e, 's': (0.8*e)/(2*k + 1), 'g': 0.8*0.2*e}
+    params = {'k': k, 'e': e, 's': (0.8*e)/(2*k + 1), 'g': 0.8*0.1*e}
     error_dict = test(X, target_cluster, params, metric, num_workers)
     print('Errors = ', error_dict)
     with open(out_file, 'wb') as f:
