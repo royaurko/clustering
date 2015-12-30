@@ -549,6 +549,7 @@ def main(file_name, data_label, metric, out_file, num_workers):
     # Create the params dictionary to pass to test()
     params = {'k': k, 'e': e, 'b': (0.8*e)/(2*k), 'a': 0.8*0.1*e}
     error_dict = test(X, target_cluster, params, metric, num_workers)
+    error_dict['params'] = params
     print('Errors = ', error_dict)
     with open(out_file, 'wb') as f:
         pickle.dump(error_dict, f)
