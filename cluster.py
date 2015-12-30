@@ -37,17 +37,17 @@ def error(cluster, target_cluster):
     """
     k = len(set(target_cluster))
     n = len(target_cluster)
-    C = list()
-    T = list()
+    C = []
+    T = []
     for i in range(1, k+1):
         tmp = {j for j in range(n) if cluster[j] == i}
         C.append(tmp)
         tmp = {j for j in range(n) if target_cluster[j] == i}
         T.append(tmp)
-    M = list()
+    M = []
     for i in range(k):
         M.append([0]*k)
-    testM = list()
+    testM = []
     for i in range(k):
         testM.append([0]*k)
     for i in range(k):
@@ -165,12 +165,12 @@ def get_thresholds(X, minsize, num_workers, metric, i):
     return thresholds, i, elem
 
 
-def threshold(X, e, g, s, k, num_workers, metric):
+def threshold(X, e, a, b, k, num_workers, metric):
     """ Get all threshold clusters (algorithm 7, lines 1-6)
     :param X: Data matrix
     :param e: lower bound on fractional size of each cluster
-    :param g: lower bound on fractional size of a set inside own cluster for which stability holds
-    :param s: lower bound on fractional size of a set outside own cluster for which stability holds
+    :param a: lower bound on fractional size of a set inside own cluster for which stability holds
+    :param b: lower bound on fractional size of a set outside own cluster for which stability holds
     :param k: Number of clusters
     :param num_workers: Number of workers
     :param metric: metric is in the set {avg, min, max}
@@ -191,7 +191,7 @@ def threshold(X, e, g, s, k, num_workers, metric):
     end = time.time()
     print('Length of L = ', len(L))
     print('time = {0:.2f}s'.format(end - start))
-    return refine(L, X, D, e, g, s, k, num_workers, metric)
+    return refine(L, X, D, e, a, b, k, num_workers, metric)
 
 
 def refine_individual(D, T, t, S):
@@ -214,14 +214,14 @@ def refine_individual(D, T, t, S):
     return B
 
 
-def refine(L, X, D, e, g, s, k, num_workers, metric):
+def refine(L, X, D, e, a, b, k, num_workers, metric):
     """ Throw out bad points (algorithm 7, lines 7-17)
     :param L: List of subsets
     :param X: Data matrix
     :param D: dictionary
     :param e: lower bound on fractional size of each cluster
-    :param g: lower bound on fractional size of a set inside own cluster for which stability holds
-    :param s: lower bound on fractional size of a set outside own cluster for which stability holds
+    :param a: lower bound on fractional size of a set inside own cluster for which stability holds
+    :param b: lower bound on fractional size of a set outside own cluster for which stability holds
     :param k: Number of clusters
     :param num_workers: Number of workers
     :param metric: metric is in {avg, max, min}
@@ -231,8 +231,8 @@ def refine(L, X, D, e, g, s, k, num_workers, metric):
     print('Length of L at start = ', len(L))
     start = time.time()
     n = len(X)
-    T = int((e - 2*g - s*k) * n)
-    t = int((e - g) * n)
+    T = int((e - 2*a - b*k) * n)
+    t = int((e - a) * n)
     with Pool() as pool:
         func = partial(refine_individual, D, T, t)
         L = pool.map(func, L)
@@ -241,7 +241,7 @@ def refine(L, X, D, e, g, s, k, num_workers, metric):
     end = time.time()
     print('Length of L on end = ', len(L))
     print('time = {0:.2f}s'.format(end - start))
-    return grow(L, X, g, num_workers, metric)
+    return grow(L, X, a, num_workers, metric)
 
 
 def grow_individual(X, t, num_workers, metric, A):
@@ -259,11 +259,11 @@ def grow_individual(X, t, num_workers, metric, A):
     return A
 
 
-def grow(L, X, g, num_workers, metric):
+def grow(L, X, a, num_workers, metric):
     """ Get back good points (algorithm 7, lines 18-21)
     :param L: The list of candidate clusters
     :param X: Data set
-    :param g: Parameter on stability
+    :param a: Parameter on stability
     :param num_workers: Number of workers
     :param metric: metric is in {avg, max, min}
     :return: Refined list of candidate clusters
@@ -272,7 +272,7 @@ def grow(L, X, g, num_workers, metric):
     print('Length of L at start = ', len(L))
     start = time.time()
     n = len(X)
-    t = int(g*n)
+    t = int(a*n)
     with Pool(num_workers) as pool:
         func = partial(grow_individual, X, t, num_workers, metric)
         L = pool.map(func, L)
@@ -306,7 +306,7 @@ def non_laminar(L, i):
     :param i: index in L from which on we computer intersections
     :return: Tuple (i, list) where list is a list of indices of sets in L[i+1], ..., L[n-1] that are non-laminar
     """
-    indices = list()
+    indices = []
     for j in range(i + 1, len(L)):
         intersection = L[i].intersection(L[j])
         if intersection:
@@ -318,13 +318,13 @@ def non_laminar(L, i):
     return indices
 
 
-def mark_non_laminar(L, X, e, g, s, num_workers, metric, t):
+def mark_non_laminar(L, X, e, a, b, num_workers, metric, t):
     """
     :param L: List of candidate clusters
     :param X: Data set
     :param e: parameter on size of clusters
-    :param g: parameter on similarity condition
-    :param s: parameter on similarity condition
+    :param a: parameter on similarity condition
+    :param b: parameter on similarity condition
     :param num_workers: Number of workers
     :param metric: metric is in {avg, max, min}
     :param t: Tuple (i, j) where L[i] and L[j] are non-laminar
@@ -336,7 +336,7 @@ def mark_non_laminar(L, X, e, g, s, num_workers, metric, t):
         intersection = L[i].intersection(L[j])
     except:
         return
-    if len(intersection) > int(s * n):
+    if len(intersection) > int(b * n):
         A = intersection
         try:
             C1 = L[i].difference(A)
@@ -351,7 +351,7 @@ def mark_non_laminar(L, X, e, g, s, num_workers, metric, t):
         # Intersection is small
         v = intersection.pop()
         elem = set_distances(X, {v}, num_workers, metric)
-        t = int((e - g) * n)
+        t = int((e - a) * n)
         elem = elem[:t]
         try:
             int1 = len(L[i].intersection(elem))
@@ -364,28 +364,28 @@ def mark_non_laminar(L, X, e, g, s, num_workers, metric, t):
             L[i] = None
 
 
-def iterate_laminar(L, X, e, g, s, num_workers, metric, intersections):
+def iterate_laminar(L, X, e, a, b, num_workers, metric, intersections):
     """
     :param L: List of candidate clusters
     :param X: data set
     :param e: parameter
-    :param g: parameter
-    :param s: parameter
+    :param a: parameter
+    :param b: parameter
     :param num_workers: number of workers
     :param metric: metric is in {avg, max, min}
     :param intersections: List of intersections
     """
     for item in intersections:
-        mark_non_laminar(L, X, e, g, s, num_workers, metric, item)
+        mark_non_laminar(L, X, e, a, b, num_workers, metric, item)
 
 
-def laminar(L, X, e, g, s, num_workers, metric):
+def laminar(L, X, e, a, b, num_workers, metric):
     """ Make family laminar (Algorithm 9)
     :param L: List of subsets
     :param X: The data set
     :param e: lower bound on the fractional size of every cluster
-    :param g: lower bound on the fractional size of every set in own cluster for which stability holds
-    :param s: lower bound on the fractional size of every set in outside cluster for which stability holds
+    :param a: lower bound on the fractional size of every set in own cluster for which stability holds
+    :param b: lower bound on the fractional size of every set in outside cluster for which stability holds
     :param num_workers: number of workers
     :param metric: metric is in {avg, max, min}
     :return: Laminar list
@@ -416,12 +416,12 @@ def laminar(L, X, e, g, s, num_workers, metric):
     rem = n % num_workers
     jobs = []
     for i in range(num_workers):
-        process = Process(target=iterate_laminar, args=(shared_L, X, e, g, s, num_workers, metric, intersections[j: j + batch]))
+        process = Process(target=iterate_laminar, args=(shared_L, X, e, a, b, num_workers, metric, intersections[j: j + batch]))
         process.start()
         jobs.append(process)
         j += batch
     if rem:
-        process = Process(target=iterate_laminar, args=(shared_L, X, e, g, s, num_workers, metric, intersections[j: j + rem]))
+        process = Process(target=iterate_laminar, args=(shared_L, X, e, a, b, num_workers, metric, intersections[j: j + rem]))
         process.start()
         jobs.append(process)
     for p in jobs:
@@ -458,7 +458,7 @@ def prune(L, target_cluster, k, label):
         return error(label, target_cluster), label
     # compute cost of including L[0] and not including L[0]
     A = L[0]
-    new_list = list()
+    new_list = []
     inclusion_label = label
     # new_list contains all sets not intersecting with A
     for i in range(len(L)):
@@ -491,14 +491,14 @@ def test(X, target_cluster, params, metric, num_workers):
     """
     k = params['k']
     e = params['e']
-    g = params['g']
-    s = params['s']
+    a = params['a']
+    b = params['b']
     print('k = ', k)
     print('e = ', e)
-    print('g = ', g)
-    print('s = ', s)
+    print('a = ', a)
+    print('b = ', b)
     y = pdist(X, metric='euclidean')
-    Z = list()
+    Z = []
     Z.append(hac.linkage(y, method='single'))
     Z.append(hac.linkage(y, method='complete'))
     Z.append(hac.linkage(y, method='average'))
@@ -506,11 +506,11 @@ def test(X, target_cluster, params, metric, num_workers):
     other_clusters = [hac.fcluster(x, k, 'maxclust') for x in Z]
     errors = [error(x, target_cluster) for x in other_clusters]
     error_dict = {'single linkage': errors[0], 'complete linkage': errors[1], 'average linkage': errors[2], 'ward': errors[3]}
-    L = threshold(X, e, g, s, k, num_workers, metric)
+    L = threshold(X, e, a, b, k, num_workers, metric)
     prelaminar_name = 'prelaminar_' + metric
     with open(prelaminar_name, 'wb') as f:
         pickle.dump(L, f)
-    L = laminar(L, X, e, g, s, num_workers, metric)
+    L = laminar(L, X, e, a, b, num_workers, metric)
     laminar_name = 'laminar_' + metric
     with open(laminar_name, 'wb') as f:
         pickle.dump(L, f)
@@ -534,8 +534,8 @@ def main(file_name, data_label, metric, out_file, num_workers):
     if metric not in {'avg', 'max', 'min'}:
         return
     reader = csv.reader(open(file_name), delimiter=',')
-    X = list()
-    target_cluster = list()
+    X = []
+    target_cluster = []
     for row in reader:
         if row:
             label = row[data_label]
@@ -545,9 +545,9 @@ def main(file_name, data_label, metric, out_file, num_workers):
     X = np.array(X, dtype=float)
     target_cluster = np.array(target_cluster, dtype=int)
     k = len(set(target_cluster))
-    e = 1/(3*k)
+    e = 1/(2*k)
     # Create the params dictionary to pass to test()
-    params = {'k': k, 'e': e, 's': (0.8*e)/(2*k + 1), 'g': 0.8*0.1*e}
+    params = {'k': k, 'e': e, 'b': (0.8*e)/(2*k), 'a': 0.8*0.1*e}
     error_dict = test(X, target_cluster, params, metric, num_workers)
     print('Errors = ', error_dict)
     with open(out_file, 'wb') as f:
