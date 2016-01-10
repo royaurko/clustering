@@ -523,32 +523,21 @@ def test(X, target_cluster, params, metric, num_workers):
     return error_dict
 
 
-def main(file_name, data_label, metric, out_file, num_workers):
+def main(data, target, metric, out_file, num_workers):
     """
-    :param file_name: Name of file containing data
-    :param data_label: column of data where label is
+    :param data: Data
+    :param target: target (numerical)
     :param metric: Metric is in {avg, max, min}
     :param out_file: Name of pickle file to store result
     :param num_workers: number of workers
     """
     if metric not in {'avg', 'max', 'min'}:
         return
-    reader = csv.reader(open(file_name), delimiter=',')
-    X = []
-    target_cluster = []
-    for row in reader:
-        if row:
-            label = row[data_label]
-            row.pop(data_label)
-            X.append(row)
-            target_cluster.append(label)
-    X = np.array(X, dtype=float)
-    target_cluster = np.array(target_cluster, dtype=int)
-    k = len(set(target_cluster))
+    k = len(set(target))
     e = 1/(2*k)
     # Create the params dictionary to pass to test()
-    params = {'k': k, 'e': e, 'b': (0.8*e)/(2*k), 'a': 0.8*0.1*e}
-    error_dict = test(X, target_cluster, params, metric, num_workers)
+    params = {'k': k, 'e': e, 'b': (0.8*e)/(2*k + 1), 'a': 0.8*0.09*e}
+    error_dict = test(data, target, params, metric, num_workers)
     error_dict['params'] = params
     print('Errors = ', error_dict)
     with open(out_file, 'wb') as f:
@@ -563,4 +552,17 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--out_file', default='result.pkl', help='Pickle file to store the result')
     parser.add_argument('-n', '--num_workers', type=int, default=1, help='Number of workers')
     args = parser.parse_args()
-    main(args.data, args.label, args.metric, args.out_file, args.num_workers)
+    reader = csv.reader(open(args.data), delimiter=',')
+    data = []
+    target = []
+    for row in reader:
+        if row:
+            label = row[args.label]
+            row.pop(args.label)
+            data.append(row)
+            target.append(label)
+    data = np.array(data, dtype=float)
+    labels = set(target)
+    label_to_idx = {v: i for i, v in enumerate(labels)}
+    target = np.array([label_to_idx[i] for i in target], dtype=int)
+    main(data, target, args.metric, args.out_file, args.num_workers)
