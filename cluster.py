@@ -536,7 +536,7 @@ def main(data, target, metric, out_file, num_workers):
     k = len(set(target))
     e = 1/(2*k)
     # Create the params dictionary to pass to test()
-    params = {'k': k, 'e': e, 'b': (0.8*e)/(2*k + 1), 'a': 0.8*0.09*e}
+    params = {'k': k, 'e': e, 'b': (0.8*e)/(2*k + 2), 'a': 0.8*0.1*e}
     error_dict = test(data, target, params, metric, num_workers)
     error_dict['params'] = params
     print('Errors = ', error_dict)
