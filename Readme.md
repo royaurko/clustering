@@ -1,4 +1,4 @@
-# A stability based algorithm for similarity clustering
+# A noise tolerant stability-based algorithm for similarity clustering 
 
 This is a Python 3 implementation of a simple thresholding algorithm for clustering under a pairwise
  similarity measure. The algorithm correctly recovers the **target** clustering if the similarity
