@@ -15,7 +15,7 @@ stable in the sense that it only requires sets A, X and Y above a certain size l
 satisfy this property. The present implementation is not super optimized, however it is largely parallelized.
 
 
-Authors (manuscript): Aurko Roy, Sadra Yazdanbod and Daniel Zink
+[Manuscript](https://sites.google.com/site/royaurko/clustering.pdf)
 
 ## Non standard dependencies
  - [munkres](https://pypi.python.org/pypi/munkres/)
