@@ -14,6 +14,7 @@ are more similar to points in their own cluster than to points in other clusters
 stable in the sense that it only requires sets A, X and Y above a certain size limit (proportional to n) to
 satisfy this property. The present implementation is not super optimized, however it is largely parallelized.
 
+Authors: Aurko Roy, Sadra Yazdanbod and Daniel Zink
 
 ## Non standard dependencies
  - [munkres](https://pypi.python.org/pypi/munkres/)
